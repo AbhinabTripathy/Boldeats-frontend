@@ -1,0 +1,69 @@
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { ThemeProvider, createTheme, Box } from '@mui/material';
+import Layout from './components/Layout';
+import Dashboard from './components/Dashboard';
+import PaymentsScreen from './components/PaymentsScreen';
+import OrdersScreen from './components/OrdersScreen';
+import UsersScreen from './components/UsersScreen';
+import NotificationsScreen from './components/NotificationsScreen';
+import Header from './components/Header';
+import Sidebar from './components/Sidebar';
+import SubscribedUsersScreen from './components/SubscribedUsersScreen';
+import VendorScreen from './components/VendorScreen';
+
+const theme = createTheme({
+  palette: {
+    primary: {
+      main: '#1976d2',
+    },
+    secondary: {
+      main: '#dc004e',
+    },
+  },
+});
+
+const AppContent = () => {
+  const location = useLocation();
+  const isNotificationsPage = location.pathname === '/notifications';
+
+  if (isNotificationsPage) {
+    return (
+      <Box sx={{ minHeight: '100vh' }}>
+        <Header />
+        <NotificationsScreen />
+      </Box>
+    );
+  }
+
+  return (
+    <Layout>
+      <Routes>
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/payments" element={<PaymentsScreen />} />
+        <Route path="/orders" element={<OrdersScreen />} />
+        <Route path="/users" element={<UsersScreen />} />
+        <Route path="/subscribed-users" element={<SubscribedUsersScreen />} />
+        <Route path="/vendors" element={<VendorScreen />} />
+      </Routes>
+    </Layout>
+  );
+};
+
+function App() {
+  return (
+    <ThemeProvider theme={theme}>
+      <Router>
+        <div style={{ display: 'flex' }}>
+          <Sidebar />
+          <Routes>
+            <Route path="/notifications" element={<AppContent />} />
+            <Route path="/*" element={<AppContent />} />
+          </Routes>
+        </div>
+      </Router>
+    </ThemeProvider>
+  );
+}
+
+export default App;
