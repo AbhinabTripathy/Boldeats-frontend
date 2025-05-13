@@ -18,7 +18,8 @@ import {
   Divider,
   Paper,
   FormHelperText,
-  Chip
+  Chip,
+  Alert
 } from '@mui/material';
 import { TimePicker } from '@mui/x-date-pickers/TimePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -66,6 +67,7 @@ const AddVendorForm = ({ open, handleClose }) => {
     closingTime: null,
     weeklyPrice: '',
     monthlyPrice: '',
+    businessYear: '',
   });
 
   // For file previews
@@ -86,6 +88,14 @@ const AddVendorForm = ({ open, handleClose }) => {
 
   // Validation errors
   const [errors, setErrors] = useState({});
+
+  // Calculate years in business
+  const calculateYearsInBusiness = (establishmentYear) => {
+    if (!establishmentYear) return '';
+    const currentYear = new Date().getFullYear();
+    const years = currentYear - parseInt(establishmentYear, 10);
+    return years > 0 ? `${years} years in business` : 'Established this year';
+  };
 
   // Handle input change
   const handleChange = (e) => {
@@ -135,11 +145,10 @@ const AddVendorForm = ({ open, handleClose }) => {
 
   // Add menu item
   const addMenuItem = () => {
-    if (menuItem && menuItemPrice) {
-      const newItem = { name: menuItem, price: menuItemPrice };
+    if (menuItem) {
+      const newItem = { name: menuItem };
       setFormData({ ...formData, menuItems: [...formData.menuItems, newItem] });
       setMenuItem('');
-      setMenuItemPrice('');
     }
   };
 
@@ -299,11 +308,120 @@ const AddVendorForm = ({ open, handleClose }) => {
   };
 
   // Handle form submission
-  const handleSubmit = () => {
+  const [submitLoading, setSubmitLoading] = useState(false);
+  const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [submitError, setSubmitError] = useState('');
+
+  const handleSubmit = async () => {
     if (validateForm()) {
-      console.log('Form submitted:', formData);
-      // Here you would actually send the data to your backend
-      handleClose();
+      setSubmitLoading(true);
+      setSubmitError('');
+      
+      try {
+        // Get auth token from localStorage
+        const token = localStorage.getItem('adminToken');
+        
+        if (!token) {
+          throw new Error('Authentication token not found. Please log in again.');
+        }
+
+        console.log('Using token for vendor submission:', token);
+        
+        // Create FormData object to handle file uploads
+        const formDataToSend = new FormData();
+        
+        // Add form fields to FormData in the required format
+        formDataToSend.append('name', formData.name);
+        formDataToSend.append('contactNumber', formData.contactNumber);
+        formDataToSend.append('address', formData.address);
+        formDataToSend.append('logo', formData.logo);
+        formDataToSend.append('gstin', formData.gstin || '');
+        formDataToSend.append('fssaiNumber', formData.fssai);
+        formDataToSend.append('fssaiCertificate', formData.fssaiFile);
+        formDataToSend.append('accountHolderName', formData.accountName);
+        formDataToSend.append('accountNumber', formData.accountNumber);
+        formDataToSend.append('ifscCode', formData.ifscCode);
+        formDataToSend.append('bankName', formData.bankName);
+        formDataToSend.append('branch', formData.branch);
+        
+        // Format time values properly
+        const formatTime = (date) => {
+          if (!date) return '';
+          return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+        };
+        
+        formDataToSend.append('openingTime', formatTime(formData.openingTime));
+        formDataToSend.append('closingTime', formatTime(formData.closingTime));
+        formDataToSend.append('subscriptionPriceMonthly', formData.monthlyPrice);
+        
+        // Calculate years in business for API submission
+        const currentYear = new Date().getFullYear();
+        const yearsInBusiness = formData.businessYear ? (currentYear - parseInt(formData.businessYear, 10)) : 0;
+        formDataToSend.append('yearsInBusiness', yearsInBusiness.toString());
+        
+        // Add menu items as JSON string
+        formDataToSend.append('menuItems', JSON.stringify(formData.menuItems));
+        
+        // Add menu photos
+        if (formData.menuPhotos.length > 0) {
+          formData.menuPhotos.forEach((photo, index) => {
+            formDataToSend.append('menuPhotos', photo);
+          });
+        }
+        
+        // If GSTIN file is provided, add it
+        if (formData.gstinFile) {
+          formDataToSend.append('gstinCertificate', formData.gstinFile);
+        }
+        
+        // For debugging - log all form data being sent
+        console.log('Submitting form data:');
+        for (let [key, value] of formDataToSend.entries()) {
+          console.log(`${key}: ${value instanceof File ? value.name : value}`);
+        }
+        
+        // Make POST request to API
+        const response = await fetch('http://3.108.237.86:3333/api/vendors/add', {
+          method: 'POST',
+          headers: {
+            // Do not set Content-Type header when using FormData
+            // The browser will automatically set the correct Content-Type with boundary
+            'Authorization': `Bearer ${token}`
+          },
+          body: formDataToSend
+        });
+        
+        console.log('Response status:', response.status);
+        
+        const data = await response.json();
+        console.log('Response data:', data);
+        
+        if (!response.ok) {
+          if (response.status === 401) {
+            // Handle expired or invalid token
+            localStorage.removeItem('adminToken');
+            localStorage.removeItem('isAuthenticated');
+            throw new Error('Your session has expired. Please log in again.');
+          }
+          throw new Error(data.message || 'Failed to add vendor');
+        }
+        
+        // Log successful response
+        console.log('Vendor added successfully:', data);
+        
+        // Show success message
+        setSubmitSuccess(true);
+        
+        // Close dialog after short delay
+        setTimeout(() => {
+          handleClose();
+        }, 2000);
+      } catch (error) {
+        console.error('Error adding vendor:', error);
+        setSubmitError(error.message || 'Failed to add vendor. Please try again.');
+      } finally {
+        setSubmitLoading(false);
+      }
     }
   };
 
@@ -324,6 +442,16 @@ const AddVendorForm = ({ open, handleClose }) => {
         </Box>
       </DialogTitle>
       <DialogContent dividers>
+        {submitSuccess && (
+          <Alert severity="success" sx={{ mb: 2 }}>
+            Vendor added successfully!
+          </Alert>
+        )}
+        {submitError && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {submitError}
+          </Alert>
+        )}
         <Grid container spacing={3}>
           {/* Basic Information */}
           <Grid item xs={12}>
@@ -374,6 +502,20 @@ const AddVendorForm = ({ open, handleClose }) => {
               onChange={handleChange}
               error={!!errors.address}
               helperText={errors.address}
+            />
+          </Grid>
+          
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              label="Establishment Year"
+              name="businessYear"
+              type="number"
+              placeholder="e.g., 2015"
+              value={formData.businessYear}
+              onChange={handleChange}
+              inputProps={{ min: 1900, max: new Date().getFullYear() }}
+              helperText={formData.businessYear ? calculateYearsInBusiness(formData.businessYear) : "Year when business was established"}
             />
           </Grid>
           
@@ -630,21 +772,13 @@ const AddVendorForm = ({ open, handleClose }) => {
                 value={menuItem}
                 onChange={(e) => setMenuItem(e.target.value)}
                 size="small"
-                sx={{ mr: 1, flex: 2 }}
-              />
-              <TextField
-                label="Price (₹)"
-                value={menuItemPrice}
-                onChange={(e) => setMenuItemPrice(e.target.value)}
-                type="number"
-                size="small"
                 sx={{ mr: 1, flex: 1 }}
               />
               <Button 
                 variant="contained" 
                 startIcon={<Add />}
                 onClick={addMenuItem}
-                disabled={!menuItem || !menuItemPrice}
+                disabled={!menuItem}
               >
                 Add
               </Button>
@@ -661,9 +795,6 @@ const AddVendorForm = ({ open, handleClose }) => {
                       <Box display="flex" justifyContent="space-between" alignItems="center" p={1} borderBottom="1px solid #eee">
                         <Typography variant="body2">{item.name}</Typography>
                         <Box display="flex" alignItems="center">
-                          <Typography variant="body2" color="text.secondary" mr={1}>
-                            ₹{item.price}
-                          </Typography>
                           <IconButton size="small" color="error" onClick={() => removeMenuItem(index)}>
                             <Delete fontSize="small" />
                           </IconButton>
@@ -796,13 +927,15 @@ const AddVendorForm = ({ open, handleClose }) => {
         </Grid>
       </DialogContent>
       <DialogActions>
-        <Button onClick={handleClose}>Cancel</Button>
+        <Button onClick={handleClose} disabled={submitLoading}>Cancel</Button>
         <Button 
           onClick={handleSubmit} 
           variant="contained" 
           color="primary"
+          disabled={submitLoading}
+          startIcon={submitLoading && <CircularProgress size={20} color="inherit" />}
         >
-          Save Vendor
+          {submitLoading ? 'Saving...' : 'Save Vendor'}
         </Button>
       </DialogActions>
     </Dialog>

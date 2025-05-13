@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme, Box } from '@mui/material';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
@@ -11,6 +11,7 @@ import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import SubscribedUsersScreen from './components/SubscribedUsersScreen';
 import VendorScreen from './components/VendorScreen';
+import Login from './components/Login';
 
 const theme = createTheme({
   palette: {
@@ -22,6 +23,19 @@ const theme = createTheme({
     },
   },
 });
+
+// Check if user is authenticated
+const isAuthenticated = () => {
+  return localStorage.getItem('isAuthenticated') === 'true';
+};
+
+// Protected route component
+const ProtectedRoute = ({ children }) => {
+  if (!isAuthenticated()) {
+    return <Navigate to="/login" />;
+  }
+  return children;
+};
 
 const AppContent = () => {
   const location = useLocation();
@@ -54,13 +68,23 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <Router>
-        <div style={{ display: 'flex' }}>
-          <Sidebar />
-          <Routes>
-            <Route path="/notifications" element={<AppContent />} />
-            <Route path="/*" element={<AppContent />} />
-          </Routes>
-        </div>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route
+            path="/*"
+            element={
+              <ProtectedRoute>
+                <div style={{ display: 'flex' }}>
+                  <Sidebar />
+                  <Routes>
+                    <Route path="/notifications" element={<AppContent />} />
+                    <Route path="/*" element={<AppContent />} />
+                  </Routes>
+                </div>
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
       </Router>
     </ThemeProvider>
   );

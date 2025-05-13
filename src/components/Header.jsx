@@ -1,12 +1,25 @@
 import React, { useState } from 'react';
-import { AppBar, Toolbar, IconButton, Box, Menu, MenuItem, ListItemIcon, ListItemText } from '@mui/material';
+import { 
+  AppBar, 
+  Toolbar, 
+  IconButton, 
+  Box, 
+  Menu, 
+  MenuItem, 
+  ListItemIcon, 
+  ListItemText,
+  useTheme,
+  useMediaQuery,
+  Tooltip
+} from '@mui/material';
 import { 
   AccountCircle, 
   Notifications, 
   Settings,
   Person,
   ManageAccounts,
-  Logout
+  Logout,
+  Menu as MenuIcon
 } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
 import { useNavigate } from 'react-router-dom';
@@ -16,16 +29,23 @@ const StyledAppBar = styled(AppBar)(({ theme }) => ({
   background: 'linear-gradient(180deg, #2196F3 0%, #1976D2 100%)',
   boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)',
   height: '80px',
+  [theme.breakpoints.down('sm')]: {
+    height: '70px',
+  }
 }));
 
-const LogoImage = styled('img')({
+const LogoImage = styled('img')(({ theme }) => ({
   height: '150px',
   marginRight: '16px',
   marginTop: '-50px',
   cursor: 'pointer',
   position: 'relative',
   top: '20px',
-});
+  [theme.breakpoints.down('sm')]: {
+    height: '120px',
+    marginTop: '-40px',
+  }
+}));
 
 const StyledMenu = styled(Menu)(({ theme }) => ({
   '& .MuiPaper-root': {
@@ -43,8 +63,12 @@ const StyledMenu = styled(Menu)(({ theme }) => ({
   },
 }));
 
-const Header = () => {
+const Header = ({ onDrawerToggle }) => {
   const navigate = useNavigate();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const isSmall = useMediaQuery(theme.breakpoints.down('sm'));
+  
   const [anchorEl, setAnchorEl] = useState(null);
   const open = Boolean(anchorEl);
 
@@ -57,7 +81,12 @@ const Header = () => {
   };
 
   const handleLogout = () => {
-    // Add logout logic here
+    // Clear authentication data
+    localStorage.removeItem('isAuthenticated');
+    localStorage.removeItem('adminToken');
+    localStorage.removeItem('adminUser');
+    // Redirect to login page
+    navigate('/login');
     handleClose();
   };
 
@@ -90,7 +119,19 @@ const Header = () => {
 
   return (
     <StyledAppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
-      <Toolbar sx={{ height: '100%' }}>
+      <Toolbar sx={{ height: '100%', px: isSmall ? 1 : 2 }}>
+        {isMobile && (
+          <IconButton
+            color="inherit"
+            aria-label="open drawer"
+            edge="start"
+            onClick={onDrawerToggle}
+            sx={{ mr: 1 }}
+          >
+            <MenuIcon />
+          </IconButton>
+        )}
+        
         <Box sx={{ display: 'flex', alignItems: 'flex-start', flexGrow: 1 }}>
           <LogoImage
             src={logo}
@@ -98,26 +139,35 @@ const Header = () => {
             onClick={handleLogoClick}
           />
         </Box>
-        <Box>
+        
+        <Box sx={{ display: 'flex', gap: isSmall ? '4px' : '8px' }}>
           <IconButton 
             color="inherit"
             onClick={handleNotificationsClick}
+            size={isSmall ? "small" : "medium"}
           >
             <Notifications />
           </IconButton>
-          <IconButton color="inherit">
+          
+          <IconButton 
+            color="inherit"
+            size={isSmall ? "small" : "medium"}
+          >
             <Settings />
           </IconButton>
+          
           <IconButton
             color="inherit"
             onClick={handleClick}
             aria-controls={open ? 'account-menu' : undefined}
             aria-haspopup="true"
             aria-expanded={open ? 'true' : undefined}
+            size={isSmall ? "small" : "medium"}
           >
             <AccountCircle />
           </IconButton>
         </Box>
+        
         <StyledMenu
           id="account-menu"
           anchorEl={anchorEl}
