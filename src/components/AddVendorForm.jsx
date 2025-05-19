@@ -381,7 +381,7 @@ const AddVendorForm = ({ open, handleClose }) => {
         }
         
         // Make POST request to API
-        const response = await fetch('http://3.108.237.86:3333/api/vendors/add', {
+        const response = await fetch('https://api.boldeats.in/api/vendors/add', {
           method: 'POST',
           headers: {
             // Do not set Content-Type header when using FormData

@@ -35,7 +35,7 @@ const Login = () => {
     setError('');
 
     try {
-      const response = await fetch('http://3.108.237.86:3333/api/admin/login', {
+      const response = await fetch('https://api.boldeats.in/api/admin/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
