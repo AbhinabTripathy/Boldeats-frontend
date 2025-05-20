@@ -68,13 +68,21 @@ const AddVendorForm = ({ open, handleClose }) => {
     weeklyPrice: '',
     monthlyPrice: '',
     businessYear: '',
+    menuType: '',
+    mealType: '',
+    menuSections: [{ 
+      menuType: '', 
+      mealType: '', 
+      menuItems: [],
+      menuPhotos: [] 
+    }],
   });
 
   // For file previews
   const [logoPreview, setLogoPreview] = useState(null);
   const [gstinFilePreview, setGstinFilePreview] = useState(null);
   const [fssaiFilePreview, setFssaiFilePreview] = useState(null);
-  const [menuPhotosPreviews, setMenuPhotosPreviews] = useState([]);
+  const [menuPhotosPreviews, setMenuPhotosPreviews] = useState([[]]);
 
   // State for menu item form
   const [menuItem, setMenuItem] = useState('');
@@ -143,20 +151,118 @@ const AddVendorForm = ({ open, handleClose }) => {
     setMenuPhotosPreviews(updatedPreviews);
   };
 
-  // Add menu item
-  const addMenuItem = () => {
-    if (menuItem) {
-      const newItem = { name: menuItem };
-      setFormData({ ...formData, menuItems: [...formData.menuItems, newItem] });
-      setMenuItem('');
-    }
+  // Add new menu section
+  const addMenuSection = () => {
+    setFormData({
+      ...formData,
+      menuSections: [...formData.menuSections, { 
+        menuType: '', 
+        mealType: '', 
+        menuItems: [],
+        menuPhotos: []
+      }]
+    });
+    setMenuPhotosPreviews([...menuPhotosPreviews, []]);
   };
 
-  // Remove menu item
-  const removeMenuItem = (index) => {
-    const updatedItems = [...formData.menuItems];
-    updatedItems.splice(index, 1);
-    setFormData({ ...formData, menuItems: updatedItems });
+  // Remove menu section
+  const removeMenuSection = (index) => {
+    const updatedSections = formData.menuSections.filter((_, i) => i !== index);
+    const updatedPreviews = menuPhotosPreviews.filter((_, i) => i !== index);
+    setFormData({
+      ...formData,
+      menuSections: updatedSections
+    });
+    setMenuPhotosPreviews(updatedPreviews);
+  };
+
+  // Update menu section
+  const updateMenuSection = (index, field, value) => {
+    const updatedSections = [...formData.menuSections];
+    updatedSections[index] = {
+      ...updatedSections[index],
+      [field]: value
+    };
+    setFormData({
+      ...formData,
+      menuSections: updatedSections
+    });
+  };
+
+  // Handle file input change for section-specific photos
+  const handleSectionFileChange = (e, sectionIndex) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const updatedSections = [...formData.menuSections];
+    updatedSections[sectionIndex].menuPhotos = [...updatedSections[sectionIndex].menuPhotos, file];
+    
+    const updatedPreviews = [...menuPhotosPreviews];
+    updatedPreviews[sectionIndex] = [...updatedPreviews[sectionIndex], URL.createObjectURL(file)];
+    
+    setFormData({
+      ...formData,
+      menuSections: updatedSections
+    });
+    setMenuPhotosPreviews(updatedPreviews);
+  };
+
+  // Remove menu photo from specific section
+  const removeMenuPhotoFromSection = (sectionIndex, photoIndex) => {
+    const updatedSections = [...formData.menuSections];
+    updatedSections[sectionIndex].menuPhotos = updatedSections[sectionIndex].menuPhotos.filter((_, i) => i !== photoIndex);
+    
+    const updatedPreviews = [...menuPhotosPreviews];
+    URL.revokeObjectURL(updatedPreviews[sectionIndex][photoIndex]);
+    updatedPreviews[sectionIndex] = updatedPreviews[sectionIndex].filter((_, i) => i !== photoIndex);
+    
+    setFormData({
+      ...formData,
+      menuSections: updatedSections
+    });
+    setMenuPhotosPreviews(updatedPreviews);
+  };
+
+  // Add menu item to specific section with day-wise food items
+  const addMenuItemToSection = (sectionIndex) => {
+    const newItem = {
+      monday: '',
+      tuesday: '',
+      wednesday: '',
+      thursday: '',
+      friday: '',
+      saturday: '',
+      sunday: ''
+    };
+    const updatedSections = [...formData.menuSections];
+    updatedSections[sectionIndex].menuItems = [
+      ...updatedSections[sectionIndex].menuItems,
+      newItem
+    ];
+    setFormData({
+      ...formData,
+      menuSections: updatedSections
+    });
+  };
+
+  // Remove menu item from specific section
+  const removeMenuItemFromSection = (sectionIndex, itemIndex) => {
+    const updatedSections = [...formData.menuSections];
+    updatedSections[sectionIndex].menuItems = updatedSections[sectionIndex].menuItems.filter((_, i) => i !== itemIndex);
+    setFormData({
+      ...formData,
+      menuSections: updatedSections
+    });
+  };
+
+  // Update day-wise food item
+  const updateDayFood = (sectionIndex, itemIndex, day, value) => {
+    const updatedSections = [...formData.menuSections];
+    updatedSections[sectionIndex].menuItems[itemIndex][day] = value;
+    setFormData({
+      ...formData,
+      menuSections: updatedSections
+    });
   };
 
   // Fetch bank details based on IFSC code
@@ -277,11 +383,11 @@ const AddVendorForm = ({ open, handleClose }) => {
     if (!formData.accountName) newErrors.accountName = 'Account holder name is required';
     if (!formData.accountNumber) newErrors.accountNumber = 'Account number is required';
     if (!formData.ifscCode) newErrors.ifscCode = 'IFSC code is required';
-    if (formData.menuItems.length === 0) newErrors.menuItems = 'At least one menu item is required';
+    if (formData.menuSections.length === 0) newErrors.menuSections = 'At least one menu section is required';
     if (!formData.openingTime) newErrors.openingTime = 'Opening time is required';
     if (!formData.closingTime) newErrors.closingTime = 'Closing time is required';
-    if (!formData.weeklyPrice) newErrors.weeklyPrice = '15 days subscription price is required';
-    if (!formData.monthlyPrice) newErrors.monthlyPrice = 'Monthly subscription price is required';
+    if (!formData.menuType) newErrors.menuType = 'Menu type is required';
+    if (!formData.mealType) newErrors.mealType = 'Meal type is required';
     
     // Phone number validation
     if (formData.contactNumber && !/^\d{10}$/.test(formData.contactNumber)) {
@@ -353,14 +459,16 @@ const AddVendorForm = ({ open, handleClose }) => {
         formDataToSend.append('openingTime', formatTime(formData.openingTime));
         formDataToSend.append('closingTime', formatTime(formData.closingTime));
         formDataToSend.append('subscriptionPriceMonthly', formData.monthlyPrice);
+        formDataToSend.append('menuType', formData.menuType);
+        formDataToSend.append('mealType', formData.mealType);
         
         // Calculate years in business for API submission
         const currentYear = new Date().getFullYear();
         const yearsInBusiness = formData.businessYear ? (currentYear - parseInt(formData.businessYear, 10)) : 0;
         formDataToSend.append('yearsInBusiness', yearsInBusiness.toString());
         
-        // Add menu items as JSON string
-        formDataToSend.append('menuItems', JSON.stringify(formData.menuItems));
+        // Add menu sections as JSON string
+        formDataToSend.append('menuSections', JSON.stringify(formData.menuSections));
         
         // Add menu photos
         if (formData.menuPhotos.length > 0) {
@@ -752,106 +860,186 @@ const AddVendorForm = ({ open, handleClose }) => {
           
           {/* Menu Information */}
           <Grid item xs={12} mt={2}>
-            <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
-              Menu Information
-            </Typography>
-            <Divider sx={{ mb: 2 }} />
-          </Grid>
-          
-          <Grid item xs={12}>
-            <Typography variant="subtitle2" gutterBottom>
-              Menu Items *
-            </Typography>
-            {errors.menuItems && (
-              <FormHelperText error>{errors.menuItems}</FormHelperText>
-            )}
-            
-            <Box display="flex" alignItems="flex-start" mb={2}>
-              <TextField
-                label="Item Name"
-                value={menuItem}
-                onChange={(e) => setMenuItem(e.target.value)}
-                size="small"
-                sx={{ mr: 1, flex: 1 }}
-              />
-              <Button 
-                variant="contained" 
+            <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+              <Typography variant="subtitle1" fontWeight="bold">
+                Menu Information
+              </Typography>
+              <Button
+                variant="contained"
                 startIcon={<Add />}
-                onClick={addMenuItem}
-                disabled={!menuItem}
+                onClick={addMenuSection}
+                size="small"
               >
-                Add
+                Add Menu Section
               </Button>
             </Box>
-            
-            {formData.menuItems.length > 0 && (
-              <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
-                <Typography variant="subtitle2" gutterBottom>
-                  Added Menu Items
-                </Typography>
-                <Grid container spacing={1}>
-                  {formData.menuItems.map((item, index) => (
-                    <Grid item xs={12} key={index}>
-                      <Box display="flex" justifyContent="space-between" alignItems="center" p={1} borderBottom="1px solid #eee">
-                        <Typography variant="body2">{item.name}</Typography>
-                        <Box display="flex" alignItems="center">
-                          <IconButton size="small" color="error" onClick={() => removeMenuItem(index)}>
-                            <Delete fontSize="small" />
-                          </IconButton>
-                        </Box>
-                      </Box>
-                    </Grid>
-                  ))}
-                </Grid>
-              </Paper>
-            )}
+            <Divider sx={{ mb: 2 }} />
           </Grid>
-          
-          <Grid item xs={12}>
-            <Typography variant="subtitle2" gutterBottom>
-              Menu Photos
-            </Typography>
-            <UploadButton
-              component="label"
-              variant="outlined"
-              startIcon={<CloudUpload />}
-            >
-              Upload Menu Photos
-              <VisuallyHiddenInput 
-                type="file" 
-                accept="image/*"
-                onChange={(e) => handleFileChange(e, 'menuPhotos')} 
-              />
-            </UploadButton>
-            
-            {menuPhotosPreviews.length > 0 && (
-              <Box display="flex" flexWrap="wrap" mt={2}>
-                {menuPhotosPreviews.map((preview, index) => (
-                  <Box key={index} position="relative" m={1}>
-                    <img 
-                      src={preview} 
-                      alt={`Menu preview ${index + 1}`} 
-                      style={{ width: 100, height: 100, objectFit: 'cover', borderRadius: 4 }} 
-                    />
+
+          {formData.menuSections.map((section, sectionIndex) => (
+            <Grid item xs={12} key={sectionIndex}>
+              <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
+                <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                  <Typography variant="subtitle2">
+                    Menu Section {sectionIndex + 1}
+                  </Typography>
+                  {sectionIndex > 0 && (
                     <IconButton
                       size="small"
-                      sx={{ 
-                        position: 'absolute', 
-                        top: -10, 
-                        right: -10, 
-                        bgcolor: 'background.paper',
-                        boxShadow: 1,
-                        '&:hover': { bgcolor: 'background.paper' }
-                      }}
-                      onClick={() => removeMenuPhoto(index)}
+                      color="error"
+                      onClick={() => removeMenuSection(sectionIndex)}
                     >
                       <Delete fontSize="small" />
                     </IconButton>
-                  </Box>
-                ))}
-              </Box>
-            )}
-          </Grid>
+                  )}
+                </Box>
+
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={6}>
+                    <FormControl fullWidth required>
+                      <InputLabel>Menu Type</InputLabel>
+                      <Select
+                        value={section.menuType || ''}
+                        onChange={(e) => updateMenuSection(sectionIndex, 'menuType', e.target.value)}
+                        label="Menu Type"
+                        error={!!errors.menuType}
+                      >
+                        <MenuItem value="veg">Veg</MenuItem>
+                        <MenuItem value="non-veg">Non-Veg</MenuItem>
+                        <MenuItem value="both">Both</MenuItem>
+                      </Select>
+                      {errors.menuType && (
+                        <FormHelperText error>{errors.menuType}</FormHelperText>
+                      )}
+                    </FormControl>
+                  </Grid>
+
+                  <Grid item xs={12} sm={6}>
+                    <FormControl fullWidth required>
+                      <InputLabel>Meal Type</InputLabel>
+                      <Select
+                        value={section.mealType || ''}
+                        onChange={(e) => updateMenuSection(sectionIndex, 'mealType', e.target.value)}
+                        label="Meal Type"
+                        error={!!errors.mealType}
+                      >
+                        <MenuItem value="breakfast">Breakfast</MenuItem>
+                        <MenuItem value="lunch">Lunch</MenuItem>
+                        <MenuItem value="dinner">Dinner</MenuItem>
+                      </Select>
+                      {errors.mealType && (
+                        <FormHelperText error>{errors.mealType}</FormHelperText>
+                      )}
+                    </FormControl>
+                  </Grid>
+
+                  <Grid item xs={12}>
+                    <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                      <Typography variant="subtitle2">
+                        Menu Items *
+                      </Typography>
+                      <Button 
+                        variant="contained" 
+                        startIcon={<Add />}
+                        onClick={() => addMenuItemToSection(sectionIndex)}
+                        size="small"
+                      >
+                        Add Menu Item
+                      </Button>
+                    </Box>
+                    {errors.menuItems && (
+                      <FormHelperText error>{errors.menuItems}</FormHelperText>
+                    )}
+                    
+                    {section.menuItems.length > 0 && (
+                      <Paper variant="outlined" sx={{ p: 2 }}>
+                        <Grid container spacing={2}>
+                          {section.menuItems.map((item, itemIndex) => (
+                            <Grid item xs={12} key={itemIndex}>
+                              <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
+                                <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                                  <Typography variant="subtitle2">
+                                    Menu Item {itemIndex + 1}
+                                  </Typography>
+                                  <IconButton 
+                                    size="small" 
+                                    color="error" 
+                                    onClick={() => removeMenuItemFromSection(sectionIndex, itemIndex)}
+                                  >
+                                    <Delete fontSize="small" />
+                                  </IconButton>
+                                </Box>
+                                <Grid container spacing={2}>
+                                  {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map((day) => (
+                                    <Grid item xs={12} sm={6} md={4} key={day}>
+                                      <TextField
+                                        fullWidth
+                                        label={day.charAt(0).toUpperCase() + day.slice(1)}
+                                        value={item[day]}
+                                        onChange={(e) => updateDayFood(sectionIndex, itemIndex, day, e.target.value)}
+                                        size="small"
+                                        placeholder={`Enter food for ${day}`}
+                                      />
+                                    </Grid>
+                                  ))}
+                                </Grid>
+                              </Paper>
+                            </Grid>
+                          ))}
+                        </Grid>
+                      </Paper>
+                    )}
+                  </Grid>
+
+                  <Grid item xs={12}>
+                    <Typography variant="subtitle2" gutterBottom>
+                      Menu Photos
+                    </Typography>
+                    <UploadButton
+                      component="label"
+                      variant="outlined"
+                      startIcon={<CloudUpload />}
+                    >
+                      Upload Menu Photos
+                      <VisuallyHiddenInput 
+                        type="file" 
+                        accept="image/*"
+                        onChange={(e) => handleSectionFileChange(e, sectionIndex)} 
+                      />
+                    </UploadButton>
+                    
+                    {menuPhotosPreviews[sectionIndex]?.length > 0 && (
+                      <Box display="flex" flexWrap="wrap" mt={2}>
+                        {menuPhotosPreviews[sectionIndex].map((preview, photoIndex) => (
+                          <Box key={photoIndex} position="relative" m={1}>
+                            <img 
+                              src={preview} 
+                              alt={`Menu preview ${photoIndex + 1}`} 
+                              style={{ width: 100, height: 100, objectFit: 'cover', borderRadius: 4 }} 
+                            />
+                            <IconButton
+                              size="small"
+                              sx={{ 
+                                position: 'absolute', 
+                                top: -10, 
+                                right: -10, 
+                                bgcolor: 'background.paper',
+                                boxShadow: 1,
+                                '&:hover': { bgcolor: 'background.paper' }
+                              }}
+                              onClick={() => removeMenuPhotoFromSection(sectionIndex, photoIndex)}
+                            >
+                              <Delete fontSize="small" />
+                            </IconButton>
+                          </Box>
+                        ))}
+                      </Box>
+                    )}
+                  </Grid>
+                </Grid>
+              </Paper>
+            </Grid>
+          ))}
           
           {/* Business Hours & Pricing */}
           <Grid item xs={12} mt={2}>
@@ -898,7 +1086,6 @@ const AddVendorForm = ({ open, handleClose }) => {
           <Grid item xs={12} sm={6}>
             <TextField
               fullWidth
-              required
               label="15 days Subscription Price (₹)"
               name="weeklyPrice"
               type="number"
@@ -913,7 +1100,6 @@ const AddVendorForm = ({ open, handleClose }) => {
           <Grid item xs={12} sm={6}>
             <TextField
               fullWidth
-              required
               label="Monthly Subscription Price (₹)"
               name="monthlyPrice"
               type="number"

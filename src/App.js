@@ -9,9 +9,12 @@ import UsersScreen from './components/UsersScreen';
 import NotificationsScreen from './components/NotificationsScreen';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
-import SubscribedUsersScreen from './components/SubscribedUsersScreen';
+import ActiveUsersScreen from './components/SubscribedUsersScreen';
 import VendorScreen from './components/VendorScreen';
+import PastSubscribersScreen from './components/PastSubscribersScreen';
 import Login from './components/Login';
+import { UserProvider } from './contexts/UserContext';
+import { VendorProvider } from './contexts/VendorContext';
 
 const theme = createTheme({
   palette: {
@@ -57,7 +60,8 @@ const AppContent = () => {
         <Route path="/payments" element={<PaymentsScreen />} />
         <Route path="/orders" element={<OrdersScreen />} />
         <Route path="/users" element={<UsersScreen />} />
-        <Route path="/subscribed-users" element={<SubscribedUsersScreen />} />
+        <Route path="/subscribed-users" element={<ActiveUsersScreen />} />
+        <Route path="/past-subscribers" element={<PastSubscribersScreen />} />
         <Route path="/vendors" element={<VendorScreen />} />
       </Routes>
     </Layout>
@@ -67,25 +71,29 @@ const AppContent = () => {
 function App() {
   return (
     <ThemeProvider theme={theme}>
-      <Router>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route
-            path="/*"
-            element={
-              <ProtectedRoute>
-                <div style={{ display: 'flex' }}>
-                  <Sidebar />
-                  <Routes>
-                    <Route path="/notifications" element={<AppContent />} />
-                    <Route path="/*" element={<AppContent />} />
-                  </Routes>
-                </div>
-              </ProtectedRoute>
-            }
-          />
-        </Routes>
-      </Router>
+      <UserProvider>
+        <VendorProvider>
+          <Router>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route
+                path="/*"
+                element={
+                  <ProtectedRoute>
+                    <div style={{ display: 'flex' }}>
+                      <Sidebar />
+                      <Routes>
+                        <Route path="/notifications" element={<AppContent />} />
+                        <Route path="/*" element={<AppContent />} />
+                      </Routes>
+                    </div>
+                  </ProtectedRoute>
+                }
+              />
+            </Routes>
+          </Router>
+        </VendorProvider>
+      </UserProvider>
     </ThemeProvider>
   );
 }

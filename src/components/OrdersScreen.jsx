@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Box, 
   IconButton, 
@@ -8,13 +8,15 @@ import {
   Tabs,
   Tab,
   Tooltip,
-  Button
+  Button,
+  CircularProgress
 } from '@mui/material';
 import { 
   CalendarToday,
   PictureAsPdf,
   GridOn,
   InsertDriveFile,
+  ViewList
 } from '@mui/icons-material';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
@@ -23,6 +25,8 @@ import { format, subDays, startOfDay, isToday, isYesterday } from 'date-fns';
 import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
+import { useUsers } from '../contexts/UserContext';
+import { useVendors } from '../contexts/VendorContext';
 
 // Function to format number to Indian currency format
 const formatIndianCurrency = (amount) => {
@@ -54,7 +58,17 @@ const generateSampleData = () => {
   const paymentModes = ['Credit Card', 'UPI', 'Net Banking', 'Debit Card', 'Cash on Delivery'];
   const prices = [1499, 2499, 3499, 4999, 6999, 8999, 999, 1999, 2999, 5999];
   const statuses = ['Pending', 'Accepted', 'Rejected']; // Add different statuses
-  const vendorIds = ['V001', 'V002', 'V003', 'V004', 'V005']; // Add vendor IDs
+  
+  // Define vendors with both ID and name properties
+  const vendors = [
+    { id: 'V001', name: 'Restaurant A' },
+    { id: 'V002', name: 'Restaurant B' },
+    { id: 'V003', name: 'Restaurant C' },
+    { id: 'V004', name: 'Restaurant D' },
+    { id: 'V005', name: 'Restaurant E' }
+  ];
+  
+  console.log('Sample vendors:', vendors);
 
   let sampleData = [];
   let id = 1;
@@ -64,11 +78,13 @@ const generateSampleData = () => {
     for (let i = 0; i < 15; i++) {
       // For demonstration, randomly assign some orders as already accepted/rejected
       const randomStatus = day === 0 ? 'Pending' : statuses[Math.floor(Math.random() * statuses.length)];
+      const vendor = vendors[Math.floor(Math.random() * vendors.length)];
       
       sampleData.push({
         id: id++,
         orderId: `ORD${String(id).padStart(3, '0')}`,
-        vendorId: vendorIds[Math.floor(Math.random() * vendorIds.length)], // Add vendor ID
+        vendorId: vendor.id,
+        vendorName: vendor.name,
         customerName: names[Math.floor(Math.random() * names.length)],
         address: addresses[Math.floor(Math.random() * addresses.length)],
         paymentMode: paymentModes[Math.floor(Math.random() * paymentModes.length)],
@@ -79,37 +95,155 @@ const generateSampleData = () => {
     }
   }
 
+  // Debug log a sample of orders
+  console.log('Sample of generated orders with vendor IDs:', sampleData.slice(0, 3));
+  
   return sampleData;
 };
 
 const OrdersScreen = () => {
+  const { users, loading: usersLoading } = useUsers();
+  const { vendors, loading: vendorsLoading } = useVendors();
+  
   // Initialize orders from localStorage, merging with new orders if needed
   const [orders, setOrders] = useState(() => {
-    const savedOrders = localStorage.getItem('orders');
-    if (savedOrders) {
-      const parsedOrders = JSON.parse(savedOrders);
-      // Convert stored date strings back to Date objects
-      return parsedOrders.map(order => ({
-        ...order,
-        date: new Date(order.date)
-      }));
+    try {
+      const savedOrders = localStorage.getItem('orders');
+      if (savedOrders) {
+        const parsedOrders = JSON.parse(savedOrders);
+        // Clear localStorage to force regeneration of orders with proper vendor IDs
+        localStorage.removeItem('orders');
+        console.log('Cleared localStorage to regenerate orders with vendor IDs');
+        // We'll generate new orders below
+      }
+    } catch (error) {
+      console.error("Error loading orders from localStorage:", error);
     }
-    // If no saved orders, generate new sample data
-    const newOrders = generateSampleData();
-    localStorage.setItem('orders', JSON.stringify(newOrders));
+    
+    // Generate new sample data with user and vendor info
+    console.log('Generating new orders with vendor IDs');
+    console.log('Users loaded:', users.length);
+    console.log('Vendors loaded:', vendors.length);
+    
+    const newOrders = (users.length > 0 && vendors.length > 0) ? 
+      generateOrdersFromUsersAndVendors(users, vendors) : 
+      generateSampleData();
+    
+    console.log('New orders generated with vendor IDs check:', 
+      newOrders.slice(0, 3).map(o => ({ id: o.id, vendorId: o.vendorId })));
     return newOrders;
   });
 
+  // Generate orders based on user and vendor data
+  const generateOrdersFromUsersAndVendors = (userList, vendorList) => {
+    const paymentModes = ['Credit Card', 'UPI', 'Net Banking', 'Debit Card', 'Cash on Delivery'];
+    const prices = [1499, 2499, 3499, 4999, 6999, 8999, 999, 1999, 2999, 5999];
+    const statuses = ['Pending', 'Accepted', 'Rejected'];
+
+    // Ensure vendors list has proper ID and name properties
+    const validVendors = vendorList.filter(v => v && v.id);
+    
+    // Fallback vendors if vendor list is empty or invalid
+    const fallbackVendors = [
+      { id: 'V001', name: 'Restaurant A' },
+      { id: 'V002', name: 'Restaurant B' },
+      { id: 'V003', name: 'Restaurant C' },
+      { id: 'V004', name: 'Restaurant D' },
+      { id: 'V005', name: 'Restaurant E' }
+    ];
+    
+    // Use validVendors if available, otherwise use fallbackVendors
+    const vendors = validVendors.length > 0 ? validVendors : fallbackVendors;
+    
+    console.log('Using vendors for orders:', vendors.map(v => `${v.id}: ${v.name || 'Unknown'}`));
+
+    let ordersData = [];
+    let id = 1;
+
+    // Generate 3-5 orders for each user
+    userList.forEach(user => {
+      // Get user-specific data
+      const orderCount = Math.floor(Math.random() * 3) + 3; // 3-5 orders per user
+      
+      for (let i = 0; i < orderCount; i++) {
+        // For demonstration, randomly assign some orders as already accepted/rejected
+        const randomStatus = i === 0 ? 'Pending' : statuses[Math.floor(Math.random() * statuses.length)];
+        
+        const orderId = `ORD${String(id).padStart(3, '0')}`;
+        
+        // Check if this order ID exists in the user's orders array (from user data)
+        const isKnownOrder = user.orders && user.orders.includes(orderId);
+        
+        // Use actual vendor data, with fallback
+        const vendorIndex = Math.floor(Math.random() * vendors.length);
+        const randomVendor = vendors[vendorIndex];
+        
+        // Ensure vendor has an ID and name
+        const vendorId = randomVendor.id || `V${String(vendorIndex+1).padStart(3, '0')}`;
+        const vendorName = randomVendor.name || `Vendor ${vendorIndex+1}`;
+        
+        console.log(`Creating order for ${user.name} with vendorId: ${vendorId}, vendorName: ${vendorName}`);
+        
+        ordersData.push({
+          id: id++,
+          orderId: orderId,
+          vendorId: vendorId,
+          vendorName: vendorName,
+          userId: user.id,
+          customerName: user.name,
+          address: user.address,
+          paymentMode: paymentModes[Math.floor(Math.random() * paymentModes.length)],
+          price: formatIndianCurrency(prices[Math.floor(Math.random() * prices.length)]),
+          status: isKnownOrder ? 'Pending' : randomStatus, // Keep known orders pending for demo
+          date: subDays(new Date(), Math.floor(Math.random() * 7)) // Random date in the last week
+        });
+      }
+    });
+
+    console.log('Sample of generated orders with vendorIds:', 
+      ordersData.slice(0, 3).map(o => ({ 
+        orderId: o.orderId, 
+        vendorId: o.vendorId, 
+        vendorName: o.vendorName 
+      })));
+      
+    return ordersData;
+  };
+
+  // Update orders when user and vendor data is available
+  useEffect(() => {
+    if (users.length > 0 && vendors.length > 0 && orders.length === 0) {
+      console.log('Generating orders with updated user/vendor data');
+      const newOrders = generateOrdersFromUsersAndVendors(users, vendors);
+      console.log('New orders generated, first 3 vendor IDs:', 
+        newOrders.slice(0, 3).map(o => o.vendorId));
+      setOrders(newOrders);
+    }
+  }, [users, vendors, orders.length]);
+
+  // After initializing, verify orders have vendor IDs
+  useEffect(() => {
+    console.log('Current orders count:', orders.length);
+    if (orders.length > 0) {
+      console.log('First few orders vendor IDs:', 
+        orders.slice(0, 5).map(o => o.vendorId || 'missing'));
+    }
+  }, [orders]);
+
   // Save orders to localStorage whenever they change
   React.useEffect(() => {
-    localStorage.setItem('orders', JSON.stringify(orders));
+    try {
+      localStorage.setItem('orders', JSON.stringify(orders));
+    } catch (error) {
+      console.error("Error saving orders to localStorage:", error);
+    }
   }, [orders]);
 
   const [dateRange, setDateRange] = useState({
     from: null,
     to: null
   });
-  const [activeTab, setActiveTab] = useState(0);
+  const [activeTab, setActiveTab] = useState(-1); // Set default to -1 for All Orders
 
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
@@ -121,6 +255,7 @@ const OrdersScreen = () => {
     const filteredOrders = filterDataByDate(orders, activeTab);
     const csvData = filteredOrders.map(order => ({
       'Order ID': order.orderId,
+      'Vendor ID': order.vendorId,
       'Customer Name': order.customerName,
       'Address': order.address,
       'Status': order.status,
@@ -141,9 +276,10 @@ const OrdersScreen = () => {
     doc.addFont('https://fonts.gstatic.com/s/roboto/v29/KFOmCnqEu92Fr1Mu4mxP.ttf', 'Roboto', 'normal');
     doc.setFont('Roboto');
 
-    const tableColumn = ['Order ID', 'Customer', 'Status', 'Date'];
+    const tableColumn = ['Order ID', 'Vendor ID', 'Customer', 'Status', 'Date'];
     const tableRows = filteredOrders.map(order => [
       order.orderId,
+      order.vendorId,
       order.customerName,
       order.status,
       format(order.date, 'dd/MM/yyyy')
@@ -161,9 +297,10 @@ const OrdersScreen = () => {
       },
       columnStyles: {
         0: { cellWidth: 30 }, // Order ID
-        1: { cellWidth: 40 }, // Customer
-        2: { cellWidth: 30 }, // Status
-        3: { cellWidth: 30 } // Date
+        1: { cellWidth: 30 }, // Vendor ID
+        2: { cellWidth: 40 }, // Customer
+        3: { cellWidth: 30 }, // Status
+        4: { cellWidth: 30 } // Date
       },
       headStyles: {
         fillColor: [41, 128, 185],
@@ -180,6 +317,7 @@ const OrdersScreen = () => {
     const filteredOrders = filterDataByDate(orders, activeTab);
     const excelData = filteredOrders.map(order => ({
       'Order ID': order.orderId,
+      'Vendor ID': order.vendorId,
       'Customer Name': order.customerName,
       'Address': order.address,
       'Status': order.status,
@@ -201,8 +339,6 @@ const OrdersScreen = () => {
         }
         return order;
       });
-      // Save to localStorage immediately after update
-      localStorage.setItem('orders', JSON.stringify(updatedOrders));
       return updatedOrders;
     });
   };
@@ -216,8 +352,6 @@ const OrdersScreen = () => {
         }
         return order;
       });
-      // Save to localStorage immediately after update
-      localStorage.setItem('orders', JSON.stringify(updatedOrders));
       return updatedOrders;
     });
   };
@@ -231,7 +365,13 @@ const OrdersScreen = () => {
     { 
       id: 'vendorId', 
       label: 'Vendor ID',
-      width: 100
+      width: 100,
+      render: (row) => {
+        // Safely handle the case when vendorId is undefined
+        const vendorId = row.vendorId || '-';
+        console.log(`Rendering vendor ID for order ${row.orderId}: ${vendorId}`);
+        return vendorId;
+      }
     },
     { 
       id: 'customerName', 
@@ -308,6 +448,7 @@ const OrdersScreen = () => {
   ];
 
   const getTabLabel = (index) => {
+    if (index === -1) return 'All Orders';
     switch(index) {
       case 0:
         return 'Today';
@@ -319,6 +460,11 @@ const OrdersScreen = () => {
   };
 
   const filterDataByDate = (data, tabIndex) => {
+    // If no data, return empty array to prevent errors
+    if (!data || data.length === 0) {
+      return [];
+    }
+
     // If date range is selected, use that instead of tabs
     if (dateRange.from && dateRange.to) {
       // Ensure both dates are valid and create proper interval
@@ -336,20 +482,50 @@ const OrdersScreen = () => {
       });
     }
 
-    const today = startOfDay(new Date());
-    
-    switch(tabIndex) {
-      case 0: // Today
-        return data.filter(order => isToday(new Date(order.date)));
-      case 1: // Yesterday
-        return data.filter(order => isYesterday(new Date(order.date)));
-      default: // Other days
-        const targetDate = startOfDay(subDays(today, tabIndex));
-        return data.filter(order => 
-          startOfDay(new Date(order.date)).getTime() === targetDate.getTime()
-        );
+    // If All Orders tab is selected (-1), return all orders
+    if (tabIndex === -1) {
+      return data;
+    }
+
+    // For day-specific tabs
+    try {
+      const today = startOfDay(new Date());
+      
+      switch(tabIndex) {
+        case 0: // Today
+          return data.filter(order => {
+            const orderDate = new Date(order.date);
+            return isToday(orderDate);
+          });
+        case 1: // Yesterday
+          return data.filter(order => {
+            const orderDate = new Date(order.date);
+            return isYesterday(orderDate);
+          });
+        default: // Other days
+          const targetDate = startOfDay(subDays(today, tabIndex));
+          return data.filter(order => {
+            const orderDate = startOfDay(new Date(order.date));
+            return orderDate.getTime() === targetDate.getTime();
+          });
+      }
+    } catch (error) {
+      console.error("Error filtering orders by date:", error);
+      return data; // Return all data in case of error
     }
   };
+
+  // Ensure we have data to display
+  const filteredData = filterDataByDate(orders, activeTab);
+
+  // Show loading state when users or vendors data is loading
+  if ((usersLoading || vendorsLoading) && orders.length === 0) {
+    return (
+      <Box sx={{ p: 3, mt: 8, display: 'flex', justifyContent: 'center' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ p: 3, mt: 8 }}>
@@ -437,9 +613,16 @@ const OrdersScreen = () => {
           scrollButtons="auto"
           sx={{ borderBottom: 1, borderColor: 'divider' }}
         >
+          <Tab 
+            value={-1} 
+            label="All Orders"
+            icon={<ViewList fontSize="small" />}
+            iconPosition="start"
+          />
           {Array.from({ length: 7 }, (_, i) => (
             <Tab 
               key={i} 
+              value={i}
               label={getTabLabel(i)}
               icon={i === 0 ? <CalendarToday fontSize="small" /> : null}
               iconPosition="start"
@@ -451,8 +634,8 @@ const OrdersScreen = () => {
       {/* Orders Table */}
       <AnimatedTable
         columns={columns}
-        data={filterDataByDate(orders, activeTab)}
-        title="Orders Table"
+        data={filteredData}
+        title={`Orders Table (${filteredData.length} orders)`}
       />
     </Box>
   );

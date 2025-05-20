@@ -19,7 +19,8 @@ import {
   People,
   Subscriptions,
   Store,
-  ChevronLeft
+  ChevronLeft,
+  History
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 
@@ -91,7 +92,8 @@ const Sidebar = ({ mobileOpen, onDrawerToggle }) => {
     { text: 'Payments', icon: <Payment />, path: '/payments' },
     { text: 'Orders', icon: <ShoppingCart />, path: '/orders' },
     { text: 'Users', icon: <People />, path: '/users' },
-    { text: 'Subscribed Users', icon: <Subscriptions />, path: '/subscribed-users' },
+    { text: 'Active Users', icon: <Subscriptions />, path: '/subscribed-users' },
+    { text: 'Past Subscribers', icon: <History />, path: '/past-subscribers' },
     { text: 'Vendors', icon: <Store />, path: '/vendors' },
   ];
 
