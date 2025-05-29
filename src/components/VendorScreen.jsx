@@ -162,7 +162,9 @@ const VendorScreen = () => {
                     <TableCell>SI No.</TableCell>
                     <TableCell>Vendor ID</TableCell>
                     <TableCell>Name</TableCell>
+                    <TableCell>Email ID</TableCell>
                     <TableCell>Phone Number</TableCell>
+                    <TableCell>Password</TableCell>
                     <TableCell>Joined Date</TableCell>
                     <TableCell>Status</TableCell>
                     <TableCell>No. of Active Orders</TableCell>
@@ -177,7 +179,11 @@ const VendorScreen = () => {
                         <TableCell>{page * rowsPerPage + index + 1}</TableCell>
                         <TableCell>{vendor.id}</TableCell>
                         <TableCell>{vendor.name}</TableCell>
+                        <TableCell>{vendor.email || 'N/A'}</TableCell>
                         <TableCell>{vendor.phoneNumber}</TableCell>
+                        <TableCell>
+                          {vendor.password ? '••••••••' : 'N/A'}
+                        </TableCell>
                         <TableCell>{formatDate(vendor.joinedDate)}</TableCell>
                         <TableCell>{getStatusChip(vendor.status)}</TableCell>
                         <TableCell>{vendor.ordersCount}</TableCell>

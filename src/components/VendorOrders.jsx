@@ -9,7 +9,9 @@ import {
   Tab,
   Tooltip,
   Button,
-  CircularProgress
+  CircularProgress,
+  useTheme,
+  useMediaQuery
 } from '@mui/material';
 import { 
   CalendarToday,
@@ -101,9 +103,12 @@ const generateSampleData = () => {
   return sampleData;
 };
 
-const OrdersScreen = () => {
+const VendorOrders = () => {
   const { users, loading: usersLoading } = useUsers();
   const { vendors, loading: vendorsLoading } = useVendors();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isTablet = useMediaQuery(theme.breakpoints.down('md'));
   
   // Generate orders based on user and vendor data
   const generateOrdersFromUsersAndVendors = useCallback((userList, vendorList) => {
@@ -360,33 +365,27 @@ const OrdersScreen = () => {
     { 
       id: 'orderId', 
       label: 'Order ID',
-      width: 120
-    },
-    { 
-      id: 'vendorId', 
-      label: 'Vendor ID',
-      width: 100,
-      render: (row) => {
-        // Safely handle the case when vendorId is undefined
-        const vendorId = row.vendorId || '-';
-        console.log(`Rendering vendor ID for order ${row.orderId}: ${vendorId}`);
-        return vendorId;
-      }
+      width: 120,
+      minWidth: 100
     },
     { 
       id: 'customerName', 
       label: 'Customer Name',
-      width: 150
+      width: 150,
+      minWidth: 120
     },
     { 
       id: 'address', 
       label: 'Address',
-      width: 200
+      width: 200,
+      minWidth: 150,
+      hide: isMobile // Hide address on mobile
     },
     { 
       id: 'status', 
       label: 'Status',
       width: 120,
+      minWidth: 100,
       render: (row) => (
         <Chip 
           label={row.status} 
@@ -396,7 +395,7 @@ const OrdersScreen = () => {
             row.status === 'Rejected' ? 'error' : 
             'default'
           }
-          size="small"
+          size={isMobile ? "small" : "medium"}
         />
       )
     },
@@ -404,37 +403,42 @@ const OrdersScreen = () => {
       id: 'actions',
       label: 'Actions',
       width: 200,
+      minWidth: 150,
       align: 'center',
       render: (row) => {
         if (row.status === 'Pending') {
           return (
-            <Stack direction="row" spacing={1} justifyContent="center">
+            <Stack 
+              direction={isMobile ? "column" : "row"} 
+              spacing={1} 
+              justifyContent="center"
+            >
               <Button
                 variant="contained"
-                size="small"
+                size={isMobile ? "small" : "medium"}
                 onClick={() => handleAccept(row.orderId)}
                 sx={{
                   bgcolor: '#4caf50',
                   '&:hover': {
                     bgcolor: '#388e3c'
                   },
-                  minWidth: '70px',
-                  height: '30px'
+                  minWidth: isMobile ? '60px' : '70px',
+                  height: isMobile ? '24px' : '30px'
                 }}
               >
                 Accept
               </Button>
               <Button
                 variant="contained"
-                size="small"
+                size={isMobile ? "small" : "medium"}
                 onClick={() => handleReject(row.orderId)}
                 sx={{
                   bgcolor: '#f44336',
                   '&:hover': {
                     bgcolor: '#d32f2f'
                   },
-                  minWidth: '70px',
-                  height: '30px'
+                  minWidth: isMobile ? '60px' : '70px',
+                  height: isMobile ? '24px' : '30px'
                 }}
               >
                 Reject
@@ -445,7 +449,7 @@ const OrdersScreen = () => {
         return null;
       }
     }
-  ];
+  ].filter(col => !col.hide); // Filter out hidden columns
 
   const getTabLabel = (index) => {
     if (index === -1) return 'All Orders';
@@ -528,10 +532,27 @@ const OrdersScreen = () => {
   }
 
   return (
-    <Box sx={{ p: 3, mt: 8 }}>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
+    <Box sx={{ 
+      p: { xs: 1, sm: 2, md: 3 }, 
+      mt: { xs: 7, sm: 8 }
+    }}>
+      <Stack 
+        direction={{ xs: 'column', sm: 'row' }} 
+        justifyContent="space-between" 
+        alignItems={{ xs: 'stretch', sm: 'center' }} 
+        sx={{ mb: { xs: 2, sm: 3 } }}
+        spacing={2}
+      >
         <Box /> {/* Empty box for spacing */}
-        <Stack direction="row" spacing={1}>
+        <Stack 
+          direction="row" 
+          spacing={1}
+          sx={{
+            flexWrap: 'wrap',
+            gap: 1,
+            justifyContent: { xs: 'center', sm: 'flex-end' }
+          }}
+        >
           <Tooltip title="Export to CSV">
             <IconButton 
               onClick={exportToCSV}
@@ -540,8 +561,8 @@ const OrdersScreen = () => {
                 '&:hover': {
                   backgroundColor: '#BBDEFB',
                 },
-                width: 40,
-                height: 40
+                width: { xs: 35, sm: 40 },
+                height: { xs: 35, sm: 40 }
               }}
             >
               <InsertDriveFile color="primary" />
@@ -555,8 +576,8 @@ const OrdersScreen = () => {
                 '&:hover': {
                   backgroundColor: '#FFCDD2',
                 },
-                width: 40,
-                height: 40
+                width: { xs: 35, sm: 40 },
+                height: { xs: 35, sm: 40 }
               }}
             >
               <PictureAsPdf color="error" />
@@ -570,8 +591,8 @@ const OrdersScreen = () => {
                 '&:hover': {
                   backgroundColor: '#C8E6C9',
                 },
-                width: 40,
-                height: 40
+                width: { xs: 35, sm: 40 },
+                height: { xs: 35, sm: 40 }
               }}
             >
               <GridOn color="success" />
@@ -581,26 +602,41 @@ const OrdersScreen = () => {
       </Stack>
 
       {/* Date Filter Section */}
-      <Paper sx={{ mb: 3, p: 2 }}>
-        <Stack direction="row" spacing={2} alignItems="center" mb={2}>
+      <Paper sx={{ mb: { xs: 2, sm: 3 }, p: { xs: 1, sm: 2 } }}>
+        <Stack 
+          direction={{ xs: 'column', sm: 'row' }} 
+          spacing={2} 
+          alignItems="center" 
+          mb={2}
+        >
           <LocalizationProvider dateAdapter={AdapterDateFns}>
             <DatePicker
               label="From Date"
               value={dateRange.from}
               onChange={(newValue) => {
                 setDateRange(prev => ({ ...prev, from: newValue }));
-                setActiveTab(-1); // Deselect tabs when using date range
+                setActiveTab(-1);
               }}
-              slotProps={{ textField: { size: 'small' } }}
+              slotProps={{ 
+                textField: { 
+                  size: isMobile ? "small" : "medium",
+                  fullWidth: isMobile
+                } 
+              }}
             />
             <DatePicker
               label="To Date"
               value={dateRange.to}
               onChange={(newValue) => {
                 setDateRange(prev => ({ ...prev, to: newValue }));
-                setActiveTab(-1); // Deselect tabs when using date range
+                setActiveTab(-1);
               }}
-              slotProps={{ textField: { size: 'small' } }}
+              slotProps={{ 
+                textField: { 
+                  size: isMobile ? "small" : "medium",
+                  fullWidth: isMobile
+                } 
+              }}
             />
           </LocalizationProvider>
         </Stack>
@@ -611,12 +647,20 @@ const OrdersScreen = () => {
           onChange={handleTabChange}
           variant="scrollable"
           scrollButtons="auto"
-          sx={{ borderBottom: 1, borderColor: 'divider' }}
+          sx={{ 
+            borderBottom: 1, 
+            borderColor: 'divider',
+            '.MuiTab-root': {
+              fontSize: { xs: '0.75rem', sm: '0.875rem' },
+              minHeight: { xs: 40, sm: 48 },
+              padding: { xs: '6px 12px', sm: '12px 16px' }
+            }
+          }}
         >
           <Tab 
             value={-1} 
             label="All Orders"
-            icon={<ViewList fontSize="small" />}
+            icon={<ViewList fontSize={isMobile ? "small" : "medium"} />}
             iconPosition="start"
           />
           {Array.from({ length: 7 }, (_, i) => (
@@ -624,7 +668,7 @@ const OrdersScreen = () => {
               key={i} 
               value={i}
               label={getTabLabel(i)}
-              icon={i === 0 ? <CalendarToday fontSize="small" /> : null}
+              icon={i === 0 ? <CalendarToday fontSize={isMobile ? "small" : "medium"} /> : null}
               iconPosition="start"
             />
           ))}
@@ -636,9 +680,15 @@ const OrdersScreen = () => {
         columns={columns}
         data={filteredData}
         title={`Orders Table (${filteredData.length} orders)`}
+        sx={{
+          '& .MuiTableCell-root': {
+            padding: { xs: '8px', sm: '16px' },
+            fontSize: { xs: '0.75rem', sm: '0.875rem' }
+          }
+        }}
       />
     </Box>
   );
 };
 
-export default OrdersScreen; 
+export default VendorOrders; 

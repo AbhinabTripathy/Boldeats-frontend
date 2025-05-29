@@ -1,20 +1,24 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom';
-import { ThemeProvider, createTheme, Box } from '@mui/material';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { ThemeProvider, createTheme } from '@mui/material';
 import Layout from './components/Layout';
+import VendorLayout from './components/VendorLayout';
 import Dashboard from './components/Dashboard';
 import PaymentsScreen from './components/PaymentsScreen';
 import OrdersScreen from './components/OrdersScreen';
 import UsersScreen from './components/UsersScreen';
-import NotificationsScreen from './components/NotificationsScreen';
-import Header from './components/Header';
-import Sidebar from './components/Sidebar';
 import ActiveUsersScreen from './components/SubscribedUsersScreen';
 import VendorScreen from './components/VendorScreen';
 import PastSubscribersScreen from './components/PastSubscribersScreen';
 import Login from './components/Login';
+import VendorProfile from './components/VendorProfile';
 import { UserProvider } from './contexts/UserContext';
 import { VendorProvider } from './contexts/VendorContext';
+import VendorDashboard from './components/VendorDashboard';
+import VendorPayments from './components/VendorPayments';
+import VendorOrders from './components/VendorOrders';
+import VendorActiveUsers from './components/VendorActiveUsers';
+import VendorPastSubscribers from './components/VendorPastSubscribers';
 
 const theme = createTheme({
   palette: {
@@ -28,44 +32,33 @@ const theme = createTheme({
 });
 
 // Check if user is authenticated
-const isAuthenticated = () => {
+const isAdminAuthenticated = () => {
   return localStorage.getItem('isAuthenticated') === 'true';
 };
 
-// Protected route component
-const ProtectedRoute = ({ children }) => {
-  if (!isAuthenticated()) {
-    return <Navigate to="/login" />;
-  }
-  return children;
+const isVendorAuthenticated = () => {
+  return localStorage.getItem('isVendorAuthenticated') === 'true';
 };
 
-const AppContent = () => {
-  const location = useLocation();
-  const isNotificationsPage = location.pathname === '/notifications';
-
-  if (isNotificationsPage) {
-    return (
-      <Box sx={{ minHeight: '100vh' }}>
-        <Header />
-        <NotificationsScreen />
-      </Box>
-    );
+// Protected route components
+const AdminProtectedRoute = ({ children }) => {
+  if (isVendorAuthenticated()) {
+    return <Navigate to="/vendor" />;
   }
+  if (!isAdminAuthenticated()) {
+    return <Navigate to="/login" />;
+  }
+  return <Layout>{children}</Layout>;
+};
 
-  return (
-    <Layout>
-      <Routes>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/payments" element={<PaymentsScreen />} />
-        <Route path="/orders" element={<OrdersScreen />} />
-        <Route path="/users" element={<UsersScreen />} />
-        <Route path="/subscribed-users" element={<ActiveUsersScreen />} />
-        <Route path="/past-subscribers" element={<PastSubscribersScreen />} />
-        <Route path="/vendors" element={<VendorScreen />} />
-      </Routes>
-    </Layout>
-  );
+const VendorProtectedRoute = ({ children }) => {
+  if (isAdminAuthenticated()) {
+    return <Navigate to="/" />;
+  }
+  if (!isVendorAuthenticated()) {
+    return <Navigate to="/login" />;
+  }
+  return <VendorLayout>{children}</VendorLayout>;
 };
 
 function App() {
@@ -76,18 +69,112 @@ function App() {
           <Router>
             <Routes>
               <Route path="/login" element={<Login />} />
+              
+              {/* Admin Routes */}
               <Route
-                path="/*"
+                path="/"
                 element={
-                  <ProtectedRoute>
-                    <div style={{ display: 'flex' }}>
-                      <Sidebar />
-                      <Routes>
-                        <Route path="/notifications" element={<AppContent />} />
-                        <Route path="/*" element={<AppContent />} />
-                      </Routes>
-                    </div>
-                  </ProtectedRoute>
+                  <AdminProtectedRoute>
+                    <Dashboard />
+                  </AdminProtectedRoute>
+                }
+              />
+              <Route
+                path="/payments"
+                element={
+                  <AdminProtectedRoute>
+                    <PaymentsScreen />
+                  </AdminProtectedRoute>
+                }
+              />
+              <Route
+                path="/orders"
+                element={
+                  <AdminProtectedRoute>
+                    <OrdersScreen />
+                  </AdminProtectedRoute>
+                }
+              />
+              <Route
+                path="/users"
+                element={
+                  <AdminProtectedRoute>
+                    <UsersScreen />
+                  </AdminProtectedRoute>
+                }
+              />
+              <Route
+                path="/subscribed-users"
+                element={
+                  <AdminProtectedRoute>
+                    <ActiveUsersScreen />
+                  </AdminProtectedRoute>
+                }
+              />
+              <Route
+                path="/past-subscribers"
+                element={
+                  <AdminProtectedRoute>
+                    <PastSubscribersScreen />
+                  </AdminProtectedRoute>
+                }
+              />
+              <Route
+                path="/vendors"
+                element={
+                  <AdminProtectedRoute>
+                    <VendorScreen />
+                  </AdminProtectedRoute>
+                }
+              />
+
+              {/* Vendor Routes */}
+              <Route
+                path="/vendor"
+                element={
+                  <VendorProtectedRoute>
+                    <VendorDashboard />
+                  </VendorProtectedRoute>
+                }
+              />
+              <Route
+                path="/vendor/payments"
+                element={
+                  <VendorProtectedRoute>
+                    <VendorPayments />
+                  </VendorProtectedRoute>
+                }
+              />
+              <Route
+                path="/vendor/orders"
+                element={
+                  <VendorProtectedRoute>
+                    <VendorOrders />
+                  </VendorProtectedRoute>
+                }
+              />
+              <Route
+                path="/vendor/active-users"
+                element={
+                  <VendorProtectedRoute>
+                    <VendorActiveUsers />
+                  </VendorProtectedRoute>
+                }
+              />
+              <Route
+                path="/vendor/past-subscribers"
+                element={
+                  <VendorProtectedRoute>
+                    <VendorPastSubscribers />
+                  </VendorProtectedRoute>
+                }
+              />
+              <Route
+                path="/vendor/profile"
+                element={
+                  <VendorProtectedRoute>
+                    <VendorProfile />
+                  </VendorProtectedRoute>
                 }
               />
             </Routes>

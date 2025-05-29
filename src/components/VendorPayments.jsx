@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, IconButton, Stack, Tooltip, Select, MenuItem, FormControl, InputLabel, CircularProgress, Button } from '@mui/material';
-import { GridOn, Refresh, FileUpload, Visibility, ImageNotSupported } from '@mui/icons-material';
+import { Box, Typography, IconButton, Stack, Tooltip, Select, MenuItem, FormControl, InputLabel, CircularProgress } from '@mui/material';
+import { GridOn, Refresh } from '@mui/icons-material';
 import AnimatedTable from './AnimatedTable';
 import * as XLSX from 'xlsx';
 import { format } from 'date-fns';
 import { useUsers } from '../contexts/UserContext';
 import { useVendors } from '../contexts/VendorContext';
 
-const PaymentsScreen = () => {
+const VendorPayments = () => {
   const { users, loading: usersLoading } = useUsers();
   const { vendors, loading: vendorsLoading } = useVendors();
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('all');
@@ -18,139 +18,56 @@ const PaymentsScreen = () => {
   useEffect(() => {
     if (users.length > 0 && vendors.length > 0) {
       setLoading(true);
-      
-      // Create payments based on user data
       const generatedPayments = [];
       let id = 1;
-      
       users.forEach(user => {
         if (user.payments && user.payments.length > 0) {
           user.payments.forEach(paymentId => {
             const paymentMethods = ['Credit Card', 'UPI', 'Net Banking', 'Debit Card'];
             const amounts = [1499, 2499, 3499, 4999, 6999];
-            
-            const randomVendor = vendors[Math.floor(Math.random() * vendors.length)];
-            
+            const paymentAmount = amounts[Math.floor(Math.random() * amounts.length)];
+            // Random split for admin and vendor
+            const adminShare = Math.floor(paymentAmount * (Math.random() * 0.3 + 0.1)); // 10%-40% for admin
+            const vendorShare = paymentAmount - adminShare;
             generatedPayments.push({
               id: id,
               slNo: id,
               paymentId: paymentId,
               userId: user.id,
               customerName: user.name,
-              vendorId: randomVendor.id,
-              vendorName: randomVendor.name,
-              paymentAmount: `₹${amounts[Math.floor(Math.random() * amounts.length)]}`,
+              paymentAmount: `₹${paymentAmount}`,
+              paymentForAdmin: `₹${adminShare}`,
+              paymentForVendor: `₹${vendorShare}`,
               paymentMethod: paymentMethods[Math.floor(Math.random() * paymentMethods.length)],
               paymentStatus: Math.random() > 0.2 ? 'Completed' : (Math.random() > 0.5 ? 'Pending' : 'Failed'),
-              paymentScreenshot: user.paymentScreenshot || null // Get screenshot from user data
             });
             id++;
           });
         }
       });
-      
       setPayments(generatedPayments);
       setLoading(false);
     }
   }, [users, vendors]);
-
-  const handleScreenshotUpload = (paymentId) => (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setPayments(prevPayments =>
-          prevPayments.map(payment =>
-            payment.id === paymentId
-              ? { ...payment, paymentScreenshot: e.target.result }
-              : payment
-          )
-        );
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleViewScreenshot = (screenshot) => {
-    if (screenshot) {
-      window.open(screenshot, '_blank');
-    }
-  };
 
   const columns = [
     { id: 'slNo', label: 'Serial Number' },
     { id: 'paymentId', label: 'Payment ID' },
     { id: 'userId', label: 'User ID' },
     { id: 'customerName', label: 'Customer Name' },
-    { id: 'vendorId', label: 'Vendor ID' },
     { id: 'paymentAmount', label: 'Payment Amount', align: 'right' },
+    { id: 'paymentForAdmin', label: 'Payment for Admin', align: 'right' },
+    { id: 'paymentForVendor', label: 'Payment for Vendor', align: 'right' },
     { 
       id: 'paymentMethod', 
       label: 'Payment Method',
-      render: (row) => (
-        <FormControl size="small" sx={{ minWidth: 140 }}>
-          <Select
-            value={row.paymentMethod}
-            onChange={(e) => handlePaymentMethodRowChange(row.id, e.target.value)}
-            sx={{
-              '& .MuiSelect-select': {
-                padding: '8px 12px'
-              }
-            }}
-          >
-            <MenuItem value="Credit Card">Credit Card</MenuItem>
-            <MenuItem value="UPI">UPI</MenuItem>
-            <MenuItem value="Net Banking">Net Banking</MenuItem>
-            <MenuItem value="Debit Card">Debit Card</MenuItem>
-          </Select>
-        </FormControl>
-      )
+      render: (row) => row.paymentMethod
     },
     { 
       id: 'paymentStatus', 
       label: 'Payment Status',
-      render: (row) => (
-        <FormControl size="small" sx={{ minWidth: 120 }}>
-          <Select
-            value={row.paymentStatus}
-            onChange={(e) => handlePaymentStatusChange(row.id, e.target.value)}
-            sx={{
-              '& .MuiSelect-select': {
-                color: getStatusColor(row.paymentStatus),
-                fontWeight: 'medium'
-              }
-            }}
-          >
-            <MenuItem value="Completed" sx={{ color: 'success.main' }}>Completed</MenuItem>
-            <MenuItem value="Pending" sx={{ color: 'warning.main' }}>Pending</MenuItem>
-            <MenuItem value="Failed" sx={{ color: 'error.main' }}>Failed</MenuItem>
-          </Select>
-        </FormControl>
-      )
+      render: (row) => row.paymentStatus
     },
-    {
-      id: 'paymentScreenshot',
-      label: 'Payment Screenshot',
-      render: (row) => (
-        <Stack direction="row" spacing={1} alignItems="center">
-          {row.paymentScreenshot ? (
-            <Tooltip title="View Screenshot">
-              <IconButton
-                size="small"
-                onClick={() => handleViewScreenshot(row.paymentScreenshot)}
-                sx={{ color: 'primary.main' }}
-              >
-                <Visibility />
-              </IconButton>
-            </Tooltip>
-          ) : (
-            <Tooltip title="No Screenshot Available">
-              <ImageNotSupported color="disabled" />
-            </Tooltip>
-          )}
-        </Stack>
-      )
-    }
   ];
 
   const getStatusColor = (status) => {
@@ -197,8 +114,9 @@ const PaymentsScreen = () => {
       'Payment ID': payment.paymentId,
       'User ID': payment.userId,
       'Customer Name': payment.customerName,
-      'Vendor ID': payment.vendorId,
       'Payment Amount': payment.paymentAmount,
+      'Payment for Admin': payment.paymentForAdmin,
+      'Payment for Vendor': payment.paymentForVendor,
       'Payment Method': payment.paymentMethod,
       'Payment Status': payment.paymentStatus,
     }));
@@ -281,4 +199,4 @@ const PaymentsScreen = () => {
   );
 };
 
-export default PaymentsScreen;
+export default VendorPayments;

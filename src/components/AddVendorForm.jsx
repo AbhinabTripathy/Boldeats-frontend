@@ -49,6 +49,8 @@ const AddVendorForm = ({ open, handleClose }) => {
   // State for form fields
   const [formData, setFormData] = useState({
     name: '',
+    email: '',
+    password: '',
     address: '',
     contactNumber: '',
     logo: null,
@@ -375,6 +377,8 @@ const AddVendorForm = ({ open, handleClose }) => {
     
     // Required fields validation
     if (!formData.name) newErrors.name = 'Vendor name is required';
+    if (!formData.email) newErrors.email = 'Email is required';
+    if (!formData.password) newErrors.password = 'Password is required';
     if (!formData.address) newErrors.address = 'Address is required';
     if (!formData.contactNumber) newErrors.contactNumber = 'Contact number is required';
     if (!formData.logo) newErrors.logo = 'Logo is required';
@@ -388,6 +392,16 @@ const AddVendorForm = ({ open, handleClose }) => {
     if (!formData.closingTime) newErrors.closingTime = 'Closing time is required';
     if (!formData.menuType) newErrors.menuType = 'Menu type is required';
     if (!formData.mealType) newErrors.mealType = 'Meal type is required';
+    
+    // Email validation
+    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = 'Please enter a valid email address';
+    }
+    
+    // Password validation
+    if (formData.password && formData.password.length < 8) {
+      newErrors.password = 'Password must be at least 8 characters long';
+    }
     
     // Phone number validation
     if (formData.contactNumber && !/^\d{10}$/.test(formData.contactNumber)) {
@@ -438,6 +452,8 @@ const AddVendorForm = ({ open, handleClose }) => {
         
         // Add form fields to FormData in the required format
         formDataToSend.append('name', formData.name);
+        formDataToSend.append('email', formData.email);
+        formDataToSend.append('password', formData.password);
         formDataToSend.append('contactNumber', formData.contactNumber);
         formDataToSend.append('address', formData.address);
         formDataToSend.append('logo', formData.logo);
@@ -582,6 +598,34 @@ const AddVendorForm = ({ open, handleClose }) => {
               InputProps={{
                 endAdornment: gstLoading && <CircularProgress size={20} />,
               }}
+            />
+          </Grid>
+          
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              required
+              label="Email ID"
+              name="email"
+              type="email"
+              value={formData.email}
+              onChange={handleChange}
+              error={!!errors.email}
+              helperText={errors.email}
+            />
+          </Grid>
+          
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              required
+              label="Password"
+              name="password"
+              type="password"
+              value={formData.password}
+              onChange={handleChange}
+              error={!!errors.password}
+              helperText={errors.password || "Minimum 8 characters"}
             />
           </Grid>
           
