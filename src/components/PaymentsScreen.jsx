@@ -13,6 +13,7 @@ const PaymentsScreen = () => {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('all');
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [uploadLoading, setUploadLoading] = useState({});
 
   // Generate payment data based on user and vendor data
   useEffect(() => {
@@ -42,7 +43,8 @@ const PaymentsScreen = () => {
               paymentAmount: `₹${amounts[Math.floor(Math.random() * amounts.length)]}`,
               paymentMethod: paymentMethods[Math.floor(Math.random() * paymentMethods.length)],
               paymentStatus: Math.random() > 0.2 ? 'Completed' : (Math.random() > 0.5 ? 'Pending' : 'Failed'),
-              paymentScreenshot: user.paymentScreenshot || null // Get screenshot from user data
+              paymentScreenshot: user.paymentScreenshot || null, // Get screenshot from user data
+              adminPaymentProof: null // New field for admin uploaded payment proof
             });
             id++;
           });
@@ -71,9 +73,34 @@ const PaymentsScreen = () => {
     }
   };
 
+  const handleAdminPaymentUpload = (paymentId) => (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      setUploadLoading(prev => ({ ...prev, [paymentId]: true }));
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setPayments(prevPayments =>
+          prevPayments.map(payment =>
+            payment.id === paymentId
+              ? { ...payment, adminPaymentProof: e.target.result }
+              : payment
+          )
+        );
+        setUploadLoading(prev => ({ ...prev, [paymentId]: false }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleViewScreenshot = (screenshot) => {
     if (screenshot) {
       window.open(screenshot, '_blank');
+    }
+  };
+  
+  const handleViewAdminPayment = (adminPaymentProof) => {
+    if (adminPaymentProof) {
+      window.open(adminPaymentProof, '_blank');
     }
   };
 
@@ -150,6 +177,66 @@ const PaymentsScreen = () => {
           )}
         </Stack>
       )
+    },
+    {
+      id: 'adminPaymentProof',
+      label: 'Payment by Admin',
+      render: (row) => (
+        <Stack direction="row" spacing={1} alignItems="center">
+          {row.adminPaymentProof ? (
+            <>
+              <Tooltip title="View Admin Payment Proof">
+                <IconButton
+                  size="small"
+                  onClick={() => handleViewAdminPayment(row.adminPaymentProof)}
+                  sx={{ color: 'primary.main' }}
+                >
+                  <Visibility />
+                </IconButton>
+              </Tooltip>
+              <label htmlFor={`admin-payment-upload-${row.id}`}>
+                <input
+                  accept="image/*"
+                  id={`admin-payment-upload-${row.id}`}
+                  type="file"
+                  style={{ display: 'none' }}
+                  onChange={handleAdminPaymentUpload(row.id)}
+                />
+                <Tooltip title="Replace Admin Payment Proof">
+                  <IconButton
+                    component="span"
+                    size="small"
+                    color="primary"
+                    disabled={uploadLoading[row.id]}
+                  >
+                    {uploadLoading[row.id] ? <CircularProgress size={20} /> : <FileUpload />}
+                  </IconButton>
+                </Tooltip>
+              </label>
+            </>
+          ) : (
+            <label htmlFor={`admin-payment-upload-${row.id}`}>
+              <input
+                accept="image/*"
+                id={`admin-payment-upload-${row.id}`}
+                type="file"
+                style={{ display: 'none' }}
+                onChange={handleAdminPaymentUpload(row.id)}
+              />
+              <Tooltip title="Upload Admin Payment Proof">
+                <IconButton
+                  component="span"
+                  size="small"
+                  color="primary"
+                  disabled={uploadLoading[row.id]}
+                >
+                  {uploadLoading[row.id] ? <CircularProgress size={20} /> : <FileUpload />}
+                </IconButton>
+              </Tooltip>
+            </label>
+          )}
+        </Stack>
+      )
     }
   ];
 
@@ -201,6 +288,7 @@ const PaymentsScreen = () => {
       'Payment Amount': payment.paymentAmount,
       'Payment Method': payment.paymentMethod,
       'Payment Status': payment.paymentStatus,
+      'Admin Payment': payment.adminPaymentProof ? 'Uploaded' : 'Not Uploaded',
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(excelData);

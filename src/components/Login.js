@@ -11,9 +11,12 @@ import {
   CircularProgress,
   Tabs,
   Tab,
+  InputAdornment,
+  IconButton
 } from '@mui/material';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import StoreIcon from '@mui/icons-material/Store';
+import { Visibility, VisibilityOff } from '@mui/icons-material';
 
 // Static vendor data for testing
 const STATIC_VENDORS = [
@@ -48,8 +51,8 @@ const STATIC_VENDORS = [
 ];
 
 const Login = () => {
-  const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState(0);
+    const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState(0); // 0: Vendor, 1: Admin
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -57,6 +60,7 @@ const Login = () => {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
@@ -77,13 +81,17 @@ const Login = () => {
     setError('');
   };
 
+  const handleClickShowPassword = () => {
+    setShowPassword(!showPassword);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
     try {
-      if (activeTab === 0) {
+      if (activeTab === 1) {
         // Admin login - using existing API
         const response = await fetch('https://api.boldeats.in/api/admin/login', {
           method: 'POST',
@@ -191,9 +199,9 @@ const Login = () => {
             }}
           >
             <Tab 
-              icon={<AdminPanelSettingsIcon />} 
+              icon={<StoreIcon />} 
               iconPosition="start" 
-              label="Admin Login" 
+              label="Vendor Login" 
               sx={{ 
                 minHeight: '48px',
                 '& .MuiTab-iconWrapper': {
@@ -202,9 +210,9 @@ const Login = () => {
               }}
             />
             <Tab 
-              icon={<StoreIcon />} 
+              icon={<AdminPanelSettingsIcon />} 
               iconPosition="start" 
-              label="Vendor Login" 
+              label="Admin Login" 
               sx={{ 
                 minHeight: '48px',
                 '& .MuiTab-iconWrapper': {
@@ -222,36 +230,6 @@ const Login = () => {
 
           <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1, width: '100%' }}>
             {activeTab === 0 ? (
-              // Admin Login Form
-              <>
-                <TextField
-                  margin="normal"
-                  required
-                  fullWidth
-                  id="email"
-                  label="Email Address"
-                  name="email"
-                  autoComplete="email"
-                  autoFocus
-                  value={formData.email}
-                  onChange={handleChange}
-                  disabled={loading}
-                />
-                <TextField
-                  margin="normal"
-                  required
-                  fullWidth
-                  name="password"
-                  label="Password"
-                  type="password"
-                  id="password"
-                  autoComplete="current-password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  disabled={loading}
-                />
-              </>
-            ) : (
               // Vendor Login Form
               <>
                 <TextField
@@ -274,12 +252,68 @@ const Login = () => {
                   fullWidth
                   name="password"
                   label="Password"
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   id="password"
                   autoComplete="current-password"
                   value={formData.password}
                   onChange={handleChange}
                   disabled={loading}
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          aria-label="toggle password visibility"
+                          onClick={handleClickShowPassword}
+                          edge="end"
+                        >
+                          {showPassword ? <VisibilityOff /> : <Visibility />}
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+              </>
+            ) : (
+              // Admin Login Form
+              <>
+                <TextField
+                  margin="normal"
+                  required
+                  fullWidth
+                  id="email"
+                  label="Email Address"
+                  name="email"
+                  autoComplete="email"
+                  autoFocus
+                  value={formData.email}
+                  onChange={handleChange}
+                  disabled={loading}
+                />
+                <TextField
+                  margin="normal"
+                  required
+                  fullWidth
+                  name="password"
+                  label="Password"
+                  type={showPassword ? 'text' : 'password'}
+                  id="password"
+                  autoComplete="current-password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  disabled={loading}
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          aria-label="toggle password visibility"
+                          onClick={handleClickShowPassword}
+                          edge="end"
+                        >
+                          {showPassword ? <VisibilityOff /> : <Visibility />}
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  }}
                 />
               </>
             )}
@@ -291,7 +325,7 @@ const Login = () => {
               sx={{ mt: 3, mb: 2 }}
               disabled={loading}
             >
-              {loading ? <CircularProgress size={24} /> : `Sign In as ${activeTab === 0 ? 'Admin' : 'Vendor'}`}
+              {loading ? <CircularProgress size={24} /> : `Sign In as ${activeTab === 0 ? 'Vendor' : 'Admin'}`}
             </Button>
           </Box>
         </Paper>
@@ -300,4 +334,4 @@ const Login = () => {
   );
 };
 
-export default Login; 
+export default Login;

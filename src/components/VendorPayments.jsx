@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Typography, IconButton, Stack, Tooltip, Select, MenuItem, FormControl, InputLabel, CircularProgress } from '@mui/material';
-import { GridOn, Refresh } from '@mui/icons-material';
+import { GridOn, Refresh, Visibility, ImageNotSupported } from '@mui/icons-material';
 import AnimatedTable from './AnimatedTable';
 import * as XLSX from 'xlsx';
 import { format } from 'date-fns';
@@ -40,6 +40,7 @@ const VendorPayments = () => {
               paymentForVendor: `₹${vendorShare}`,
               paymentMethod: paymentMethods[Math.floor(Math.random() * paymentMethods.length)],
               paymentStatus: Math.random() > 0.2 ? 'Completed' : (Math.random() > 0.5 ? 'Pending' : 'Failed'),
+              paymentScreenshot: user.paymentScreenshot || (Math.random() > 0.5 ? `https://source.unsplash.com/random/300x200?payment&sig=${id}` : null), // Simulate payment screenshots
             });
             id++;
           });
@@ -67,6 +68,29 @@ const VendorPayments = () => {
       id: 'paymentStatus', 
       label: 'Payment Status',
       render: (row) => row.paymentStatus
+    },
+    {
+      id: 'paymentScreenshot',
+      label: 'Payment Screenshot',
+      render: (row) => (
+        <Stack direction="row" spacing={1} alignItems="center">
+          {row.paymentScreenshot ? (
+            <Tooltip title="View Screenshot">
+              <IconButton
+                size="small"
+                onClick={() => handleViewScreenshot(row.paymentScreenshot)}
+                sx={{ color: 'primary.main' }}
+              >
+                <Visibility />
+              </IconButton>
+            </Tooltip>
+          ) : (
+            <Tooltip title="No Screenshot Available">
+              <ImageNotSupported color="disabled" />
+            </Tooltip>
+          )}
+        </Stack>
+      )
     },
   ];
 
@@ -103,6 +127,12 @@ const VendorPayments = () => {
     );
   };
 
+  const handleViewScreenshot = (screenshot) => {
+    if (screenshot) {
+      window.open(screenshot, '_blank');
+    }
+  };
+
   const filteredData = selectedPaymentMethod === 'all' 
     ? payments 
     : payments.filter(payment => payment.paymentMethod === selectedPaymentMethod);
@@ -119,6 +149,7 @@ const VendorPayments = () => {
       'Payment for Vendor': payment.paymentForVendor,
       'Payment Method': payment.paymentMethod,
       'Payment Status': payment.paymentStatus,
+      'Payment Screenshot': payment.paymentScreenshot ? 'Available' : 'Not Available',
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(excelData);

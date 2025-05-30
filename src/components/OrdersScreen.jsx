@@ -9,7 +9,9 @@ import {
   Tab,
   Tooltip,
   Button,
-  CircularProgress
+  CircularProgress,
+  useMediaQuery,
+  useTheme
 } from '@mui/material';
 import { 
   CalendarToday,
@@ -102,6 +104,10 @@ const generateSampleData = () => {
 };
 
 const OrdersScreen = () => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isTablet = useMediaQuery(theme.breakpoints.between('sm', 'md'));
+  
   const { users, loading: usersLoading } = useUsers();
   const { vendors, loading: vendorsLoading } = useVendors();
   
@@ -256,6 +262,7 @@ const OrdersScreen = () => {
     const csvData = filteredOrders.map(order => ({
       'Order ID': order.orderId,
       'Vendor ID': order.vendorId,
+      'User ID': order.userId || '-',
       'Customer Name': order.customerName,
       'Address': order.address,
       'Status': order.status,
@@ -276,10 +283,11 @@ const OrdersScreen = () => {
     doc.addFont('https://fonts.gstatic.com/s/roboto/v29/KFOmCnqEu92Fr1Mu4mxP.ttf', 'Roboto', 'normal');
     doc.setFont('Roboto');
 
-    const tableColumn = ['Order ID', 'Vendor ID', 'Customer', 'Status', 'Date'];
+    const tableColumn = ['Order ID', 'Vendor ID', 'User ID', 'Customer', 'Status', 'Date'];
     const tableRows = filteredOrders.map(order => [
       order.orderId,
       order.vendorId,
+      order.userId || '-',
       order.customerName,
       order.status,
       format(order.date, 'dd/MM/yyyy')
@@ -296,11 +304,12 @@ const OrdersScreen = () => {
         cellPadding: 3
       },
       columnStyles: {
-        0: { cellWidth: 30 }, // Order ID
-        1: { cellWidth: 30 }, // Vendor ID
-        2: { cellWidth: 40 }, // Customer
-        3: { cellWidth: 30 }, // Status
-        4: { cellWidth: 30 } // Date
+        0: { cellWidth: 25 }, // Order ID
+        1: { cellWidth: 25 }, // Vendor ID
+        2: { cellWidth: 25 }, // User ID
+        3: { cellWidth: 35 }, // Customer
+        4: { cellWidth: 25 }, // Status
+        5: { cellWidth: 25 } // Date
       },
       headStyles: {
         fillColor: [41, 128, 185],
@@ -318,6 +327,7 @@ const OrdersScreen = () => {
     const excelData = filteredOrders.map(order => ({
       'Order ID': order.orderId,
       'Vendor ID': order.vendorId,
+      'User ID': order.userId || '-',
       'Customer Name': order.customerName,
       'Address': order.address,
       'Status': order.status,
@@ -360,12 +370,14 @@ const OrdersScreen = () => {
     { 
       id: 'orderId', 
       label: 'Order ID',
-      width: 120
+      width: 120,
+      minWidth: 100
     },
     { 
       id: 'vendorId', 
       label: 'Vendor ID',
-      width: 100,
+      width: 120,
+      minWidth: 100,
       render: (row) => {
         // Safely handle the case when vendorId is undefined
         const vendorId = row.vendorId || '-';
@@ -374,19 +386,35 @@ const OrdersScreen = () => {
       }
     },
     { 
+      id: 'userId', 
+      label: 'User ID',
+      width: 100,
+      minWidth: 80,
+      hide: isMobile && isTablet, // Hide on very small screens
+      render: (row) => {
+        // Safely handle the case when userId is undefined
+        const userId = row.userId || '-';
+        return userId;
+      }
+    },
+    { 
       id: 'customerName', 
       label: 'Customer Name',
-      width: 150
+      width: 150,
+      minWidth: 120
     },
     { 
       id: 'address', 
       label: 'Address',
-      width: 200
+      width: 200,
+      minWidth: 150,
+      hide: isMobile // Hide address on mobile
     },
     { 
       id: 'status', 
       label: 'Status',
       width: 120,
+      minWidth: 100,
       render: (row) => (
         <Chip 
           label={row.status} 
@@ -396,7 +424,7 @@ const OrdersScreen = () => {
             row.status === 'Rejected' ? 'error' : 
             'default'
           }
-          size="small"
+          size={isMobile ? "small" : "medium"}
         />
       )
     },
@@ -641,4 +669,4 @@ const OrdersScreen = () => {
   );
 };
 
-export default OrdersScreen; 
+export default OrdersScreen;

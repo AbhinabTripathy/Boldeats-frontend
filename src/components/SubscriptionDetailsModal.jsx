@@ -15,7 +15,10 @@ import {
   ListItemText,
   Paper
 } from '@mui/material';
+import { FileDownload as FileDownloadIcon } from '@mui/icons-material';
 import { format, addDays, isSameDay } from 'date-fns';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 const SubscriptionDetailsModal = ({ open, onClose, user }) => {
   if (!user) return null;
@@ -58,6 +61,73 @@ const SubscriptionDetailsModal = ({ open, onClose, user }) => {
       default:
         return status;
     }
+  };
+  
+  // Function to generate and download PDF
+  const downloadPDF = () => {
+    const doc = new jsPDF();
+    
+    // Add Unicode font support
+    doc.addFont('https://fonts.gstatic.com/s/roboto/v29/KFOmCnqEu92Fr1Mu4mxP.ttf', 'Roboto', 'normal');
+    doc.setFont('Roboto');
+    
+    // Title
+    doc.setFontSize(18);
+    doc.text('Subscription Details', 14, 20);
+    
+    // User Information
+    doc.setFontSize(14);
+    doc.text('User Information', 14, 30);
+    doc.setFontSize(12);
+    doc.text(`Name: ${user.name}`, 14, 40);
+    doc.text(`User ID: ${user.userId}`, 14, 46);
+    doc.text(`Vendor ID: ${user.vendorId}`, 14, 52);
+    
+    // Subscription Summary
+    doc.setFontSize(14);
+    doc.text('Subscription Summary', 14, 62);
+    doc.setFontSize(12);
+    doc.text(`Duration: ${user.duration} days`, 14, 72);
+    doc.text(`Amount Paid: ${user.pendingBalance}`, 14, 78);
+    
+    // Subscription Period
+    doc.setFontSize(14);
+    doc.text('Subscription Period', 14, 88);
+    doc.setFontSize(12);
+    doc.text(`Original Start: ${format(startDate, 'dd/MM/yyyy')}`, 14, 98);
+    doc.text(`Original End: ${format(endDate, 'dd/MM/yyyy')}`, 14, 104);
+    doc.text(`Adjusted End: ${format(adjustedEndDate, 'dd/MM/yyyy')}${missedDays > 0 ? ` (+${missedDays} days)` : ''}`, 14, 110);
+    
+    // Order History
+    doc.setFontSize(14);
+    doc.text('Order History', 14, 120);
+    
+    const tableColumn = ['Date', 'Status'];
+    const tableRows = orderHistory.map(order => [
+      format(new Date(order.date), 'dd/MM/yyyy'),
+      getStatusLabel(order.status)
+    ]);
+    
+    doc.autoTable({
+      head: [tableColumn],
+      body: tableRows,
+      startY: 125,
+      theme: 'grid',
+      styles: {
+        font: 'Roboto',
+        fontSize: 10,
+        cellPadding: 3
+      },
+      headStyles: {
+        fillColor: [41, 128, 185],
+        textColor: 255,
+        fontSize: 11,
+        fontStyle: 'bold'
+      }
+    });
+    
+    // Save the PDF
+    doc.save(`subscription_details_${user.userId}_${format(new Date(), 'dd-MM-yyyy')}.pdf`);
   };
 
   return (
@@ -153,10 +223,19 @@ const SubscriptionDetailsModal = ({ open, onClose, user }) => {
         </Box>
       </DialogContent>
       <DialogActions>
+        <Button 
+          variant="contained" 
+          color="primary" 
+          startIcon={<FileDownloadIcon />} 
+          onClick={downloadPDF}
+          sx={{ mr: 1 }}
+        >
+          Download PDF
+        </Button>
         <Button onClick={onClose}>Close</Button>
       </DialogActions>
     </Dialog>
   );
 };
 
-export default SubscriptionDetailsModal; 
+export default SubscriptionDetailsModal;

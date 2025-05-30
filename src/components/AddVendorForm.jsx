@@ -19,12 +19,16 @@ import {
   Paper,
   FormHelperText,
   Chip,
-  Alert
+  Alert,
+  Stepper,
+  Step,
+  StepLabel,
+  InputAdornment
 } from '@mui/material';
 import { TimePicker } from '@mui/x-date-pickers/TimePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { CloudUpload, Close, Add, Delete } from '@mui/icons-material';
+import { CloudUpload, Close, Add, Delete, Visibility, VisibilityOff } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
 
 // Styled component for file upload
@@ -46,13 +50,20 @@ const UploadButton = styled(Button)(({ theme }) => ({
 }));
 
 const AddVendorForm = ({ open, handleClose }) => {
+  // Add new state for form steps
+  const [activeStep, setActiveStep] = useState(0);
+  const [initialFormData, setInitialFormData] = useState({
+    phone: '',
+    password: '',
+    confirmPassword: ''
+  });
+  const [initialErrors, setInitialErrors] = useState({});
+
   // State for form fields
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    password: '',
     address: '',
-    contactNumber: '',
     logo: null,
     gstin: '',
     gstinFile: null,
@@ -99,12 +110,63 @@ const AddVendorForm = ({ open, handleClose }) => {
   // Validation errors
   const [errors, setErrors] = useState({});
 
+  // Add new state for password visibility
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
   // Calculate years in business
   const calculateYearsInBusiness = (establishmentYear) => {
     if (!establishmentYear) return '';
     const currentYear = new Date().getFullYear();
     const years = currentYear - parseInt(establishmentYear, 10);
     return years > 0 ? `${years} years in business` : 'Established this year';
+  };
+
+  // Handle initial form change
+  const handleInitialFormChange = (e) => {
+    const { name, value } = e.target;
+    setInitialFormData({ ...initialFormData, [name]: value });
+    if (initialErrors[name]) {
+      setInitialErrors({ ...initialErrors, [name]: null });
+    }
+  };
+
+  // Validate initial form
+  const validateInitialForm = () => {
+    const newErrors = {};
+    
+    if (!initialFormData.phone) {
+      newErrors.phone = 'Phone number is required';
+    } else if (!/^[6-9]\d{9}$/.test(initialFormData.phone)) {
+      newErrors.phone = 'Please enter a valid Indian phone number';
+    }
+    
+    if (!initialFormData.password) {
+      newErrors.password = 'Password is required';
+    } else if (initialFormData.password.length < 6) {
+      newErrors.password = 'Password must be at least 6 characters long';
+    }
+    
+    if (!initialFormData.confirmPassword) {
+      newErrors.confirmPassword = 'Please confirm your password';
+    } else if (initialFormData.password !== initialFormData.confirmPassword) {
+      newErrors.confirmPassword = 'Passwords do not match';
+    }
+
+    setInitialErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  // Handle next step
+  const handleNext = () => {
+    if (validateInitialForm()) {
+      setActiveStep(1);
+    }
+  };
+
+  // Handle back step
+  const handleBack = () => {
+    setActiveStep(0);
   };
 
   // Handle input change
@@ -378,9 +440,7 @@ const AddVendorForm = ({ open, handleClose }) => {
     // Required fields validation
     if (!formData.name) newErrors.name = 'Vendor name is required';
     if (!formData.email) newErrors.email = 'Email is required';
-    if (!formData.password) newErrors.password = 'Password is required';
     if (!formData.address) newErrors.address = 'Address is required';
-    if (!formData.contactNumber) newErrors.contactNumber = 'Contact number is required';
     if (!formData.logo) newErrors.logo = 'Logo is required';
     if (!formData.fssai) newErrors.fssai = 'FSSAI number is required';
     if (!formData.fssaiFile) newErrors.fssaiFile = 'FSSAI certificate is required';
@@ -396,16 +456,6 @@ const AddVendorForm = ({ open, handleClose }) => {
     // Email validation
     if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = 'Please enter a valid email address';
-    }
-    
-    // Password validation
-    if (formData.password && formData.password.length < 8) {
-      newErrors.password = 'Password must be at least 8 characters long';
-    }
-    
-    // Phone number validation
-    if (formData.contactNumber && !/^\d{10}$/.test(formData.contactNumber)) {
-      newErrors.contactNumber = 'Please enter a valid 10-digit phone number';
     }
     
     // IFSC code validation
@@ -453,8 +503,6 @@ const AddVendorForm = ({ open, handleClose }) => {
         // Add form fields to FormData in the required format
         formDataToSend.append('name', formData.name);
         formDataToSend.append('email', formData.email);
-        formDataToSend.append('password', formData.password);
-        formDataToSend.append('contactNumber', formData.contactNumber);
         formDataToSend.append('address', formData.address);
         formDataToSend.append('logo', formData.logo);
         formDataToSend.append('gstin', formData.gstin || '');
@@ -549,6 +597,15 @@ const AddVendorForm = ({ open, handleClose }) => {
     }
   };
 
+  // Handle password visibility toggle
+  const handleClickShowPassword = () => {
+    setShowPassword(!showPassword);
+  };
+
+  const handleClickShowConfirmPassword = () => {
+    setShowConfirmPassword(!showConfirmPassword);
+  };
+
   return (
     <Dialog 
       open={open} 
@@ -565,6 +622,16 @@ const AddVendorForm = ({ open, handleClose }) => {
           </IconButton>
         </Box>
       </DialogTitle>
+
+      <Stepper activeStep={activeStep} sx={{ p: 3 }}>
+        <Step>
+          <StepLabel>Vendor Credentials</StepLabel>
+        </Step>
+        <Step>
+          <StepLabel>Vendor Details</StepLabel>
+        </Step>
+      </Stepper>
+
       <DialogContent dividers>
         {submitSuccess && (
           <Alert severity="success" sx={{ mb: 2 }}>
@@ -576,600 +643,670 @@ const AddVendorForm = ({ open, handleClose }) => {
             {submitError}
           </Alert>
         )}
-        <Grid container spacing={3}>
-          {/* Basic Information */}
-          <Grid item xs={12}>
-            <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
-              Basic Information
-            </Typography>
-            <Divider sx={{ mb: 2 }} />
-          </Grid>
-          
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              required
-              label="Vendor Name"
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              error={!!errors.name}
-              helperText={errors.name || (formData.gstin && formData.name ? "Auto-filled from GST" : "")}
-              InputProps={{
-                endAdornment: gstLoading && <CircularProgress size={20} />,
-              }}
-            />
-          </Grid>
-          
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              required
-              label="Email ID"
-              name="email"
-              type="email"
-              value={formData.email}
-              onChange={handleChange}
-              error={!!errors.email}
-              helperText={errors.email}
-            />
-          </Grid>
-          
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              required
-              label="Password"
-              name="password"
-              type="password"
-              value={formData.password}
-              onChange={handleChange}
-              error={!!errors.password}
-              helperText={errors.password || "Minimum 8 characters"}
-            />
-          </Grid>
-          
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              required
-              label="Contact Number"
-              name="contactNumber"
-              value={formData.contactNumber}
-              onChange={handleChange}
-              error={!!errors.contactNumber}
-              helperText={errors.contactNumber}
-            />
-          </Grid>
-          
-          <Grid item xs={12}>
-            <TextField
-              fullWidth
-              required
-              label="Address"
-              name="address"
-              multiline
-              rows={2}
-              value={formData.address}
-              onChange={handleChange}
-              error={!!errors.address}
-              helperText={errors.address}
-            />
-          </Grid>
-          
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              label="Establishment Year"
-              name="businessYear"
-              type="number"
-              placeholder="e.g., 2015"
-              value={formData.businessYear}
-              onChange={handleChange}
-              inputProps={{ min: 1900, max: new Date().getFullYear() }}
-              helperText={formData.businessYear ? calculateYearsInBusiness(formData.businessYear) : "Year when business was established"}
-            />
-          </Grid>
-          
-          <Grid item xs={12} sm={6}>
-            <Typography variant="body2" gutterBottom>
-              Vendor Logo *
-            </Typography>
-            <UploadButton
-              component="label"
-              variant="outlined"
-              startIcon={<CloudUpload />}
-              fullWidth
-              error={!!errors.logo}
-            >
-              Upload Logo
-              <VisuallyHiddenInput 
-                type="file" 
-                accept="image/*"
-                onChange={(e) => handleFileChange(e, 'logo')} 
-              />
-            </UploadButton>
-            {errors.logo && (
-              <FormHelperText error>{errors.logo}</FormHelperText>
-            )}
-            {logoPreview && (
-              <Box mt={1} position="relative" display="inline-block">
-                <img 
-                  src={logoPreview} 
-                  alt="Logo Preview" 
-                  style={{ width: 100, height: 100, objectFit: 'contain' }} 
-                />
-                <IconButton
-                  size="small"
-                  sx={{ position: 'absolute', top: 0, right: 0, bgcolor: 'rgba(255,255,255,0.7)' }}
-                  onClick={() => {
-                    URL.revokeObjectURL(logoPreview);
-                    setLogoPreview(null);
-                    setFormData({ ...formData, logo: null });
-                  }}
-                >
-                  <Delete fontSize="small" />
-                </IconButton>
-              </Box>
-            )}
-          </Grid>
-          
-          {/* Legal Information */}
-          <Grid item xs={12} mt={2}>
-            <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
-              Legal Information
-            </Typography>
-            <Divider sx={{ mb: 2 }} />
-          </Grid>
-          
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              label="GSTIN (if available)"
-              name="gstin"
-              value={formData.gstin}
-              onChange={handleChange}
-              onBlur={handleGstBlur}
-              InputProps={{
-                endAdornment: gstLoading && <CircularProgress size={20} />,
-              }}
-              error={!!errors.gstin}
-              helperText={errors.gstin}
-            />
-            {formData.gstin && (
-              <>
-                <Typography variant="body2" gutterBottom mt={1}>
-                  GSTIN Document
-                </Typography>
-                <UploadButton
-                  component="label"
-                  variant="outlined"
-                  startIcon={<CloudUpload />}
-                  size="small"
-                >
-                  Upload GSTIN Document
-                  <VisuallyHiddenInput 
-                    type="file" 
-                    accept=".pdf,.jpg,.jpeg,.png"
-                    onChange={(e) => handleFileChange(e, 'gstin')} 
-                  />
-                </UploadButton>
-                {gstinFilePreview && (
-                  <Box mt={1} position="relative" display="inline-block">
-                    <img 
-                      src={gstinFilePreview} 
-                      alt="GSTIN Preview" 
-                      style={{ width: 100, height: 100, objectFit: 'contain' }} 
-                    />
-                    <IconButton
-                      size="small"
-                      sx={{ position: 'absolute', top: 0, right: 0, bgcolor: 'rgba(255,255,255,0.7)' }}
-                      onClick={() => {
-                        URL.revokeObjectURL(gstinFilePreview);
-                        setGstinFilePreview(null);
-                        setFormData({ ...formData, gstinFile: null });
-                      }}
-                    >
-                      <Delete fontSize="small" />
-                    </IconButton>
-                  </Box>
-                )}
-              </>
-            )}
-          </Grid>
-          
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              required
-              label="FSSAI Number"
-              name="fssai"
-              value={formData.fssai}
-              onChange={handleChange}
-              error={!!errors.fssai}
-              helperText={errors.fssai}
-            />
-            <Typography variant="body2" gutterBottom mt={1}>
-              FSSAI Certificate *
-            </Typography>
-            <UploadButton
-              component="label"
-              variant="outlined"
-              startIcon={<CloudUpload />}
-              size="small"
-              error={!!errors.fssaiFile}
-            >
-              Upload FSSAI Certificate
-              <VisuallyHiddenInput 
-                type="file" 
-                accept=".pdf,.jpg,.jpeg,.png"
-                onChange={(e) => handleFileChange(e, 'fssai')} 
-              />
-            </UploadButton>
-            {errors.fssaiFile && (
-              <FormHelperText error>{errors.fssaiFile}</FormHelperText>
-            )}
-            {fssaiFilePreview && (
-              <Box mt={1} position="relative" display="inline-block">
-                <img 
-                  src={fssaiFilePreview} 
-                  alt="FSSAI Preview" 
-                  style={{ width: 100, height: 100, objectFit: 'contain' }} 
-                />
-                <IconButton
-                  size="small"
-                  sx={{ position: 'absolute', top: 0, right: 0, bgcolor: 'rgba(255,255,255,0.7)' }}
-                  onClick={() => {
-                    URL.revokeObjectURL(fssaiFilePreview);
-                    setFssaiFilePreview(null);
-                    setFormData({ ...formData, fssaiFile: null });
-                  }}
-                >
-                  <Delete fontSize="small" />
-                </IconButton>
-              </Box>
-            )}
-          </Grid>
-          
-          {/* Bank Account Details */}
-          <Grid item xs={12} mt={2}>
-            <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
-              Bank Account Details
-            </Typography>
-            <Divider sx={{ mb: 2 }} />
-          </Grid>
-          
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              required
-              label="Account Holder Name"
-              name="accountName"
-              value={formData.accountName}
-              onChange={handleChange}
-              error={!!errors.accountName}
-              helperText={errors.accountName}
-            />
-          </Grid>
-          
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              required
-              label="Account Number"
-              name="accountNumber"
-              value={formData.accountNumber}
-              onChange={handleChange}
-              error={!!errors.accountNumber}
-              helperText={errors.accountNumber}
-            />
-          </Grid>
-          
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              required
-              label="IFSC Code"
-              name="ifscCode"
-              value={formData.ifscCode}
-              onChange={handleChange}
-              onBlur={handleIfscBlur}
-              error={!!errors.ifscCode}
-              helperText={errors.ifscCode}
-              InputProps={{
-                endAdornment: ifscLoading && <CircularProgress size={20} />,
-              }}
-            />
-          </Grid>
-          
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              label="Bank Name"
-              name="bankName"
-              value={formData.bankName}
-              disabled
-            />
-          </Grid>
-          
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              label="Branch"
-              name="branch"
-              value={formData.branch}
-              disabled
-            />
-          </Grid>
-          
-          {/* Menu Information */}
-          <Grid item xs={12} mt={2}>
-            <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-              <Typography variant="subtitle1" fontWeight="bold">
-                Menu Information
+
+        {activeStep === 0 ? (
+          <Grid container spacing={3}>
+            <Grid item xs={12}>
+              <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                Vendor Credentials
               </Typography>
-              <Button
-                variant="contained"
-                startIcon={<Add />}
-                onClick={addMenuSection}
-                size="small"
-              >
-                Add Menu Section
-              </Button>
-            </Box>
-            <Divider sx={{ mb: 2 }} />
-          </Grid>
-
-          {formData.menuSections.map((section, sectionIndex) => (
-            <Grid item xs={12} key={sectionIndex}>
-              <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
-                <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-                  <Typography variant="subtitle2">
-                    Menu Section {sectionIndex + 1}
-                  </Typography>
-                  {sectionIndex > 0 && (
-                    <IconButton
-                      size="small"
-                      color="error"
-                      onClick={() => removeMenuSection(sectionIndex)}
-                    >
-                      <Delete fontSize="small" />
-                    </IconButton>
-                  )}
-                </Box>
-
-                <Grid container spacing={2}>
-                  <Grid item xs={12} sm={6}>
-                    <FormControl fullWidth required>
-                      <InputLabel>Menu Type</InputLabel>
-                      <Select
-                        value={section.menuType || ''}
-                        onChange={(e) => updateMenuSection(sectionIndex, 'menuType', e.target.value)}
-                        label="Menu Type"
-                        error={!!errors.menuType}
-                      >
-                        <MenuItem value="veg">Veg</MenuItem>
-                        <MenuItem value="non-veg">Non-Veg</MenuItem>
-                        <MenuItem value="both">Both</MenuItem>
-                      </Select>
-                      {errors.menuType && (
-                        <FormHelperText error>{errors.menuType}</FormHelperText>
-                      )}
-                    </FormControl>
-                  </Grid>
-
-                  <Grid item xs={12} sm={6}>
-                    <FormControl fullWidth required>
-                      <InputLabel>Meal Type</InputLabel>
-                      <Select
-                        value={section.mealType || ''}
-                        onChange={(e) => updateMenuSection(sectionIndex, 'mealType', e.target.value)}
-                        label="Meal Type"
-                        error={!!errors.mealType}
-                      >
-                        <MenuItem value="breakfast">Breakfast</MenuItem>
-                        <MenuItem value="lunch">Lunch</MenuItem>
-                        <MenuItem value="dinner">Dinner</MenuItem>
-                      </Select>
-                      {errors.mealType && (
-                        <FormHelperText error>{errors.mealType}</FormHelperText>
-                      )}
-                    </FormControl>
-                  </Grid>
-
-                  <Grid item xs={12}>
-                    <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-                      <Typography variant="subtitle2">
-                        Menu Items *
-                      </Typography>
-                      <Button 
-                        variant="contained" 
-                        startIcon={<Add />}
-                        onClick={() => addMenuItemToSection(sectionIndex)}
-                        size="small"
-                      >
-                        Add Menu Item
-                      </Button>
-                    </Box>
-                    {errors.menuItems && (
-                      <FormHelperText error>{errors.menuItems}</FormHelperText>
-                    )}
-                    
-                    {section.menuItems.length > 0 && (
-                      <Paper variant="outlined" sx={{ p: 2 }}>
-                        <Grid container spacing={2}>
-                          {section.menuItems.map((item, itemIndex) => (
-                            <Grid item xs={12} key={itemIndex}>
-                              <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
-                                <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-                                  <Typography variant="subtitle2">
-                                    Menu Item {itemIndex + 1}
-                                  </Typography>
-                                  <IconButton 
-                                    size="small" 
-                                    color="error" 
-                                    onClick={() => removeMenuItemFromSection(sectionIndex, itemIndex)}
-                                  >
-                                    <Delete fontSize="small" />
-                                  </IconButton>
-                                </Box>
-                                <Grid container spacing={2}>
-                                  {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map((day) => (
-                                    <Grid item xs={12} sm={6} md={4} key={day}>
-                                      <TextField
-                                        fullWidth
-                                        label={day.charAt(0).toUpperCase() + day.slice(1)}
-                                        value={item[day]}
-                                        onChange={(e) => updateDayFood(sectionIndex, itemIndex, day, e.target.value)}
-                                        size="small"
-                                        placeholder={`Enter food for ${day}`}
-                                      />
-                                    </Grid>
-                                  ))}
-                                </Grid>
-                              </Paper>
-                            </Grid>
-                          ))}
-                        </Grid>
-                      </Paper>
-                    )}
-                  </Grid>
-
-                  <Grid item xs={12}>
-                    <Typography variant="subtitle2" gutterBottom>
-                      Menu Photos
-                    </Typography>
-                    <UploadButton
-                      component="label"
-                      variant="outlined"
-                      startIcon={<CloudUpload />}
-                    >
-                      Upload Menu Photos
-                      <VisuallyHiddenInput 
-                        type="file" 
-                        accept="image/*"
-                        onChange={(e) => handleSectionFileChange(e, sectionIndex)} 
-                      />
-                    </UploadButton>
-                    
-                    {menuPhotosPreviews[sectionIndex]?.length > 0 && (
-                      <Box display="flex" flexWrap="wrap" mt={2}>
-                        {menuPhotosPreviews[sectionIndex].map((preview, photoIndex) => (
-                          <Box key={photoIndex} position="relative" m={1}>
-                            <img 
-                              src={preview} 
-                              alt={`Menu preview ${photoIndex + 1}`} 
-                              style={{ width: 100, height: 100, objectFit: 'cover', borderRadius: 4 }} 
-                            />
-                            <IconButton
-                              size="small"
-                              sx={{ 
-                                position: 'absolute', 
-                                top: -10, 
-                                right: -10, 
-                                bgcolor: 'background.paper',
-                                boxShadow: 1,
-                                '&:hover': { bgcolor: 'background.paper' }
-                              }}
-                              onClick={() => removeMenuPhotoFromSection(sectionIndex, photoIndex)}
-                            >
-                              <Delete fontSize="small" />
-                            </IconButton>
-                          </Box>
-                        ))}
-                      </Box>
-                    )}
-                  </Grid>
-                </Grid>
-              </Paper>
+              <Divider sx={{ mb: 2 }} />
             </Grid>
-          ))}
-          
-          {/* Business Hours & Pricing */}
-          <Grid item xs={12} mt={2}>
-            <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
-              Business Hours & Pricing
-            </Typography>
-            <Divider sx={{ mb: 2 }} />
-          </Grid>
-          
-          <Grid item xs={12} sm={6}>
-            <LocalizationProvider dateAdapter={AdapterDateFns}>
-              <TimePicker
-                label="Opening Time *"
-                value={formData.openingTime}
-                onChange={(newTime) => handleTimeChange(newTime, 'openingTime')}
-                slotProps={{
-                  textField: {
-                    fullWidth: true,
-                    error: !!errors.openingTime,
-                    helperText: errors.openingTime
-                  }
+
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                required
+                label="Phone Number"
+                name="phone"
+                value={initialFormData.phone}
+                onChange={handleInitialFormChange}
+                error={!!initialErrors.phone}
+                helperText={initialErrors.phone || "Enter vendor's phone number"}
+                inputProps={{ maxLength: 10 }}
+              />
+            </Grid>
+
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                required
+                label="Password"
+                name="password"
+                type={showPassword ? 'text' : 'password'}
+                value={initialFormData.password}
+                onChange={handleInitialFormChange}
+                error={!!initialErrors.password}
+                helperText={initialErrors.password || "Set a password for the vendor"}
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        aria-label="toggle password visibility"
+                        onClick={handleClickShowPassword}
+                        edge="end"
+                      >
+                        {showPassword ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
                 }}
               />
-            </LocalizationProvider>
-          </Grid>
-          
-          <Grid item xs={12} sm={6}>
-            <LocalizationProvider dateAdapter={AdapterDateFns}>
-              <TimePicker
-                label="Closing Time *"
-                value={formData.closingTime}
-                onChange={(newTime) => handleTimeChange(newTime, 'closingTime')}
-                slotProps={{
-                  textField: {
-                    fullWidth: true,
-                    error: !!errors.closingTime,
-                    helperText: errors.closingTime
-                  }
+            </Grid>
+
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                required
+                label="Confirm Password"
+                name="confirmPassword"
+                type={showConfirmPassword ? 'text' : 'password'}
+                value={initialFormData.confirmPassword}
+                onChange={handleInitialFormChange}
+                error={!!initialErrors.confirmPassword}
+                helperText={initialErrors.confirmPassword}
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        aria-label="toggle confirm password visibility"
+                        onClick={handleClickShowConfirmPassword}
+                        edge="end"
+                      >
+                        {showConfirmPassword ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
                 }}
               />
-            </LocalizationProvider>
+            </Grid>
           </Grid>
-          
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              label="15 days Subscription Price (₹)"
-              name="weeklyPrice"
-              type="number"
-              value={formData.weeklyPrice}
-              onChange={handleChange}
-              error={!!errors.weeklyPrice}
-              helperText={errors.weeklyPrice}
-              InputProps={{ startAdornment: '₹' }}
-            />
+        ) : (
+          <Grid container spacing={3}>
+            <Grid item xs={12}>
+              <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                Basic Information
+              </Typography>
+              <Divider sx={{ mb: 2 }} />
+            </Grid>
+            
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                required
+                label="Vendor Name"
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                error={!!errors.name}
+                helperText={errors.name || (formData.gstin && formData.name ? "Auto-filled from GST" : "")}
+                InputProps={{
+                  endAdornment: gstLoading && <CircularProgress size={20} />,
+                }}
+              />
+            </Grid>
+            
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                required
+                label="Email ID"
+                name="email"
+                type="email"
+                value={formData.email}
+                onChange={handleChange}
+                error={!!errors.email}
+                helperText={errors.email}
+              />
+            </Grid>
+            
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                required
+                label="Address"
+                name="address"
+                multiline
+                rows={2}
+                value={formData.address}
+                onChange={handleChange}
+                error={!!errors.address}
+                helperText={errors.address}
+              />
+            </Grid>
+            
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Establishment Year"
+                name="businessYear"
+                type="number"
+                placeholder="e.g., 2015"
+                value={formData.businessYear}
+                onChange={handleChange}
+                inputProps={{ min: 1900, max: new Date().getFullYear() }}
+                helperText={formData.businessYear ? calculateYearsInBusiness(formData.businessYear) : "Year when business was established"}
+              />
+            </Grid>
+            
+            <Grid item xs={12} sm={6}>
+              <Typography variant="body2" gutterBottom>
+                Vendor Logo *
+              </Typography>
+              <UploadButton
+                component="label"
+                variant="outlined"
+                startIcon={<CloudUpload />}
+                fullWidth
+                error={!!errors.logo}
+              >
+                Upload Logo
+                <VisuallyHiddenInput 
+                  type="file" 
+                  accept="image/*"
+                  onChange={(e) => handleFileChange(e, 'logo')} 
+                />
+              </UploadButton>
+              {errors.logo && (
+                <FormHelperText error>{errors.logo}</FormHelperText>
+              )}
+              {logoPreview && (
+                <Box mt={1} position="relative" display="inline-block">
+                  <img 
+                    src={logoPreview} 
+                    alt="Logo Preview" 
+                    style={{ width: 100, height: 100, objectFit: 'contain' }} 
+                  />
+                  <IconButton
+                    size="small"
+                    sx={{ position: 'absolute', top: 0, right: 0, bgcolor: 'rgba(255,255,255,0.7)' }}
+                    onClick={() => {
+                      URL.revokeObjectURL(logoPreview);
+                      setLogoPreview(null);
+                      setFormData({ ...formData, logo: null });
+                    }}
+                  >
+                    <Delete fontSize="small" />
+                  </IconButton>
+                </Box>
+              )}
+            </Grid>
+            
+            {/* Legal Information */}
+            <Grid item xs={12} mt={2}>
+              <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                Legal Information
+              </Typography>
+              <Divider sx={{ mb: 2 }} />
+            </Grid>
+            
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="GSTIN (if available)"
+                name="gstin"
+                value={formData.gstin}
+                onChange={handleChange}
+                onBlur={handleGstBlur}
+                InputProps={{
+                  endAdornment: gstLoading && <CircularProgress size={20} />,
+                }}
+                error={!!errors.gstin}
+                helperText={errors.gstin}
+              />
+              {formData.gstin && (
+                <>
+                  <Typography variant="body2" gutterBottom mt={1}>
+                    GSTIN Document
+                  </Typography>
+                  <UploadButton
+                    component="label"
+                    variant="outlined"
+                    startIcon={<CloudUpload />}
+                    size="small"
+                  >
+                    Upload GSTIN Document
+                    <VisuallyHiddenInput 
+                      type="file" 
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      onChange={(e) => handleFileChange(e, 'gstin')} 
+                    />
+                  </UploadButton>
+                  {gstinFilePreview && (
+                    <Box mt={1} position="relative" display="inline-block">
+                      <img 
+                        src={gstinFilePreview} 
+                        alt="GSTIN Preview" 
+                        style={{ width: 100, height: 100, objectFit: 'contain' }} 
+                      />
+                      <IconButton
+                        size="small"
+                        sx={{ position: 'absolute', top: 0, right: 0, bgcolor: 'rgba(255,255,255,0.7)' }}
+                        onClick={() => {
+                          URL.revokeObjectURL(gstinFilePreview);
+                          setGstinFilePreview(null);
+                          setFormData({ ...formData, gstinFile: null });
+                        }}
+                      >
+                        <Delete fontSize="small" />
+                      </IconButton>
+                    </Box>
+                  )}
+                </>
+              )}
+            </Grid>
+            
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                required
+                label="FSSAI Number"
+                name="fssai"
+                value={formData.fssai}
+                onChange={handleChange}
+                error={!!errors.fssai}
+                helperText={errors.fssai}
+              />
+              <Typography variant="body2" gutterBottom mt={1}>
+                FSSAI Certificate *
+              </Typography>
+              <UploadButton
+                component="label"
+                variant="outlined"
+                startIcon={<CloudUpload />}
+                size="small"
+                error={!!errors.fssaiFile}
+              >
+                Upload FSSAI Certificate
+                <VisuallyHiddenInput 
+                  type="file" 
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  onChange={(e) => handleFileChange(e, 'fssai')} 
+                />
+              </UploadButton>
+              {errors.fssaiFile && (
+                <FormHelperText error>{errors.fssaiFile}</FormHelperText>
+              )}
+              {fssaiFilePreview && (
+                <Box mt={1} position="relative" display="inline-block">
+                  <img 
+                    src={fssaiFilePreview} 
+                    alt="FSSAI Preview" 
+                    style={{ width: 100, height: 100, objectFit: 'contain' }} 
+                  />
+                  <IconButton
+                    size="small"
+                    sx={{ position: 'absolute', top: 0, right: 0, bgcolor: 'rgba(255,255,255,0.7)' }}
+                    onClick={() => {
+                      URL.revokeObjectURL(fssaiFilePreview);
+                      setFssaiFilePreview(null);
+                      setFormData({ ...formData, fssaiFile: null });
+                    }}
+                  >
+                    <Delete fontSize="small" />
+                  </IconButton>
+                </Box>
+              )}
+            </Grid>
+            
+            {/* Bank Account Details */}
+            <Grid item xs={12} mt={2}>
+              <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                Bank Account Details
+              </Typography>
+              <Divider sx={{ mb: 2 }} />
+            </Grid>
+            
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                required
+                label="Account Holder Name"
+                name="accountName"
+                value={formData.accountName}
+                onChange={handleChange}
+                error={!!errors.accountName}
+                helperText={errors.accountName}
+              />
+            </Grid>
+            
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                required
+                label="Account Number"
+                name="accountNumber"
+                value={formData.accountNumber}
+                onChange={handleChange}
+                error={!!errors.accountNumber}
+                helperText={errors.accountNumber}
+              />
+            </Grid>
+            
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                required
+                label="IFSC Code"
+                name="ifscCode"
+                value={formData.ifscCode}
+                onChange={handleChange}
+                onBlur={handleIfscBlur}
+                error={!!errors.ifscCode}
+                helperText={errors.ifscCode}
+                InputProps={{
+                  endAdornment: ifscLoading && <CircularProgress size={20} />,
+                }}
+              />
+            </Grid>
+            
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Bank Name"
+                name="bankName"
+                value={formData.bankName}
+                disabled
+              />
+            </Grid>
+            
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Branch"
+                name="branch"
+                value={formData.branch}
+                disabled
+              />
+            </Grid>
+            
+            {/* Menu Information */}
+            <Grid item xs={12} mt={2}>
+              <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                <Typography variant="subtitle1" fontWeight="bold">
+                  Menu Information
+                </Typography>
+                <Button
+                  variant="contained"
+                  startIcon={<Add />}
+                  onClick={addMenuSection}
+                  size="small"
+                >
+                  Add Menu Section
+                </Button>
+              </Box>
+              <Divider sx={{ mb: 2 }} />
+            </Grid>
+
+            {formData.menuSections.map((section, sectionIndex) => (
+              <Grid item xs={12} key={sectionIndex}>
+                <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
+                  <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                    <Typography variant="subtitle2">
+                      Menu Section {sectionIndex + 1}
+                    </Typography>
+                    {sectionIndex > 0 && (
+                      <IconButton
+                        size="small"
+                        color="error"
+                        onClick={() => removeMenuSection(sectionIndex)}
+                      >
+                        <Delete fontSize="small" />
+                      </IconButton>
+                    )}
+                  </Box>
+
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} sm={6}>
+                      <FormControl fullWidth required>
+                        <InputLabel>Menu Type</InputLabel>
+                        <Select
+                          value={section.menuType || ''}
+                          onChange={(e) => updateMenuSection(sectionIndex, 'menuType', e.target.value)}
+                          label="Menu Type"
+                          error={!!errors.menuType}
+                        >
+                          <MenuItem value="veg">Veg</MenuItem>
+                          <MenuItem value="non-veg">Non-Veg</MenuItem>
+                          <MenuItem value="both">Both</MenuItem>
+                        </Select>
+                        {errors.menuType && (
+                          <FormHelperText error>{errors.menuType}</FormHelperText>
+                        )}
+                      </FormControl>
+                    </Grid>
+
+                    <Grid item xs={12} sm={6}>
+                      <FormControl fullWidth required>
+                        <InputLabel>Meal Type</InputLabel>
+                        <Select
+                          value={section.mealType || ''}
+                          onChange={(e) => updateMenuSection(sectionIndex, 'mealType', e.target.value)}
+                          label="Meal Type"
+                          error={!!errors.mealType}
+                        >
+                          <MenuItem value="breakfast">Breakfast</MenuItem>
+                          <MenuItem value="lunch">Lunch</MenuItem>
+                          <MenuItem value="dinner">Dinner</MenuItem>
+                        </Select>
+                        {errors.mealType && (
+                          <FormHelperText error>{errors.mealType}</FormHelperText>
+                        )}
+                      </FormControl>
+                    </Grid>
+
+                    <Grid item xs={12}>
+                      <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                        <Typography variant="subtitle2">
+                          Menu Items *
+                        </Typography>
+                        <Button 
+                          variant="contained" 
+                          startIcon={<Add />}
+                          onClick={() => addMenuItemToSection(sectionIndex)}
+                          size="small"
+                        >
+                          Add Menu Item
+                        </Button>
+                      </Box>
+                      {errors.menuItems && (
+                        <FormHelperText error>{errors.menuItems}</FormHelperText>
+                      )}
+                      
+                      {section.menuItems.length > 0 && (
+                        <Paper variant="outlined" sx={{ p: 2 }}>
+                          <Grid container spacing={2}>
+                            {section.menuItems.map((item, itemIndex) => (
+                              <Grid item xs={12} key={itemIndex}>
+                                <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
+                                  <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                                    <Typography variant="subtitle2">
+                                      Menu Item {itemIndex + 1}
+                                    </Typography>
+                                    <IconButton 
+                                      size="small" 
+                                      color="error" 
+                                      onClick={() => removeMenuItemFromSection(sectionIndex, itemIndex)}
+                                    >
+                                      <Delete fontSize="small" />
+                                    </IconButton>
+                                  </Box>
+                                  <Grid container spacing={2}>
+                                    {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map((day) => (
+                                      <Grid item xs={12} sm={6} md={4} key={day}>
+                                        <TextField
+                                          fullWidth
+                                          label={day.charAt(0).toUpperCase() + day.slice(1)}
+                                          value={item[day]}
+                                          onChange={(e) => updateDayFood(sectionIndex, itemIndex, day, e.target.value)}
+                                          size="small"
+                                          placeholder={`Enter food for ${day}`}
+                                        />
+                                      </Grid>
+                                    ))}
+                                  </Grid>
+                                </Paper>
+                              </Grid>
+                            ))}
+                          </Grid>
+                        </Paper>
+                      )}
+                    </Grid>
+
+                    <Grid item xs={12}>
+                      <Typography variant="subtitle2" gutterBottom>
+                        Menu Photos
+                      </Typography>
+                      <UploadButton
+                        component="label"
+                        variant="outlined"
+                        startIcon={<CloudUpload />}
+                      >
+                        Upload Menu Photos
+                        <VisuallyHiddenInput 
+                          type="file" 
+                          accept="image/*"
+                          onChange={(e) => handleSectionFileChange(e, sectionIndex)} 
+                        />
+                      </UploadButton>
+                      
+                      {menuPhotosPreviews[sectionIndex]?.length > 0 && (
+                        <Box display="flex" flexWrap="wrap" mt={2}>
+                          {menuPhotosPreviews[sectionIndex].map((preview, photoIndex) => (
+                            <Box key={photoIndex} position="relative" m={1}>
+                              <img 
+                                src={preview} 
+                                alt={`Menu preview ${photoIndex + 1}`} 
+                                style={{ width: 100, height: 100, objectFit: 'cover', borderRadius: 4 }} 
+                              />
+                              <IconButton
+                                size="small"
+                                sx={{ 
+                                  position: 'absolute', 
+                                  top: -10, 
+                                  right: -10, 
+                                  bgcolor: 'background.paper',
+                                  boxShadow: 1,
+                                  '&:hover': { bgcolor: 'background.paper' }
+                                }}
+                                onClick={() => removeMenuPhotoFromSection(sectionIndex, photoIndex)}
+                              >
+                                <Delete fontSize="small" />
+                              </IconButton>
+                            </Box>
+                          ))}
+                        </Box>
+                      )}
+                    </Grid>
+                  </Grid>
+                </Paper>
+              </Grid>
+            ))}
+            
+            {/* Business Hours & Pricing */}
+            <Grid item xs={12} mt={2}>
+              <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                Business Hours & Pricing
+              </Typography>
+              <Divider sx={{ mb: 2 }} />
+            </Grid>
+            
+            <Grid item xs={12} sm={6}>
+              <LocalizationProvider dateAdapter={AdapterDateFns}>
+                <TimePicker
+                  label="Opening Time *"
+                  value={formData.openingTime}
+                  onChange={(newTime) => handleTimeChange(newTime, 'openingTime')}
+                  slotProps={{
+                    textField: {
+                      fullWidth: true,
+                      error: !!errors.openingTime,
+                      helperText: errors.openingTime
+                    }
+                  }}
+                />
+              </LocalizationProvider>
+            </Grid>
+            
+            <Grid item xs={12} sm={6}>
+              <LocalizationProvider dateAdapter={AdapterDateFns}>
+                <TimePicker
+                  label="Closing Time *"
+                  value={formData.closingTime}
+                  onChange={(newTime) => handleTimeChange(newTime, 'closingTime')}
+                  slotProps={{
+                    textField: {
+                      fullWidth: true,
+                      error: !!errors.closingTime,
+                      helperText: errors.closingTime
+                    }
+                  }}
+                />
+              </LocalizationProvider>
+            </Grid>
+            
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="15 days Subscription Price (₹)"
+                name="weeklyPrice"
+                type="number"
+                value={formData.weeklyPrice}
+                onChange={handleChange}
+                error={!!errors.weeklyPrice}
+                helperText={errors.weeklyPrice}
+                InputProps={{ startAdornment: '₹' }}
+              />
+            </Grid>
+            
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Monthly Subscription Price (₹)"
+                name="monthlyPrice"
+                type="number"
+                value={formData.monthlyPrice}
+                onChange={handleChange}
+                error={!!errors.monthlyPrice}
+                helperText={errors.monthlyPrice}
+                InputProps={{ startAdornment: '₹' }}
+              />
+            </Grid>
           </Grid>
-          
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              label="Monthly Subscription Price (₹)"
-              name="monthlyPrice"
-              type="number"
-              value={formData.monthlyPrice}
-              onChange={handleChange}
-              error={!!errors.monthlyPrice}
-              helperText={errors.monthlyPrice}
-              InputProps={{ startAdornment: '₹' }}
-            />
-          </Grid>
-        </Grid>
+        )}
       </DialogContent>
+
       <DialogActions>
-        <Button onClick={handleClose} disabled={submitLoading}>Cancel</Button>
-        <Button 
-          onClick={handleSubmit} 
-          variant="contained" 
-          color="primary"
-          disabled={submitLoading}
-          startIcon={submitLoading && <CircularProgress size={20} color="inherit" />}
-        >
-          {submitLoading ? 'Saving...' : 'Save Vendor'}
+        {activeStep === 1 && (
+          <Button onClick={handleBack} disabled={submitLoading}>
+            Back
+          </Button>
+        )}
+        <Button onClick={handleClose} disabled={submitLoading}>
+          Cancel
         </Button>
+        {activeStep === 0 ? (
+          <Button 
+            onClick={handleNext} 
+            variant="contained" 
+            color="primary"
+          >
+            Next
+          </Button>
+        ) : (
+          <Button 
+            onClick={handleSubmit} 
+            variant="contained" 
+            color="primary"
+            disabled={submitLoading}
+            startIcon={submitLoading && <CircularProgress size={20} color="inherit" />}
+          >
+            {submitLoading ? 'Saving...' : 'Save Vendor'}
+          </Button>
+        )}
       </DialogActions>
     </Dialog>
   );
 };
 
-export default AddVendorForm; 
+export default AddVendorForm;

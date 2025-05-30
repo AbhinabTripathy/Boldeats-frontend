@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Typography, useTheme, useMediaQuery, Toolbar, IconButton, Button } from '@mui/material';
+import { Box, Typography, useTheme, useMediaQuery, Toolbar, IconButton, Button, Avatar } from '@mui/material';
 import RestaurantIcon from '@mui/icons-material/Restaurant';
 import LogoutIcon from '@mui/icons-material/Logout';
 import { styled } from '@mui/material/styles';
@@ -48,6 +48,9 @@ const VendorHeader = () => {
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'));
   const navigate = useNavigate();
 
+  // Get vendor data from localStorage
+  const vendorData = JSON.parse(localStorage.getItem('vendorUser') || '{}');
+
   const handleLogout = () => {
     localStorage.removeItem('vendorToken');
     localStorage.removeItem('isVendorAuthenticated');
@@ -57,31 +60,54 @@ const VendorHeader = () => {
 
   return (
     <StyledHeader>
-      <Toolbar sx={{ height: '100%', px: isSmall ? 1 : 2, display: 'flex', justifyContent: 'space-between' }}>
+      <Toolbar sx={{ 
+        height: '100%', 
+        px: isSmall ? 1 : 2, 
+        display: 'flex', 
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}>
+        {/* Left side - Vendor Logo */}
         <LogoContainer>
-          <RestaurantIcon 
-            sx={{ 
-              fontSize: isSmall ? 28 : 32, 
-              color: '#1976d2',
-              position: 'relative',
-              top: '2px'
-            }} 
-          />
-          <Typography
-            variant="h6"
-            component="div"
-            sx={{
-              fontWeight: 600,
-              color: '#1976d2',
-              fontSize: isSmall ? '1.1rem' : '1.25rem',
-              position: 'relative',
-              top: '2px'
-            }}
-          >
-            BoldEats Vendor
-          </Typography>
+          {vendorData.logo ? (
+            <Avatar
+              src={vendorData.logo}
+              alt={vendorData.name}
+              sx={{ 
+                width: isSmall ? 40 : 48, 
+                height: isSmall ? 40 : 48,
+                border: '2px solid #1976d2'
+              }}
+            />
+          ) : (
+            <RestaurantIcon 
+              sx={{ 
+                fontSize: isSmall ? 28 : 32, 
+                color: '#1976d2',
+                position: 'relative',
+                top: '2px'
+              }} 
+            />
+          )}
         </LogoContainer>
 
+        {/* Middle - Vendor Panel Text */}
+        <Typography
+          variant="h4"
+          component="div"
+          sx={{
+            fontWeight: 700,
+            color: '#1976d2',
+            fontSize: isSmall ? '1.1rem' : '1.25rem',
+            position: 'absolute',
+            left: '50%',
+            transform: 'translateX(-50%)'
+          }}
+        >
+          Vendor Panel
+        </Typography>
+
+        {/* Right side - Logout Button */}
         <StyledLogoutButton
           variant="outlined"
           startIcon={!isSmall && <LogoutIcon />}

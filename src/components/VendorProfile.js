@@ -175,45 +175,56 @@ const VendorProfile = () => {
 
       {/* Basic Information */}
       <Paper sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" sx={{ mb: 2 }}>
-          Basic Information
+        <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
+          Basic Information <span style={{ color: 'red', marginLeft: 4 }}>*</span>
         </Typography>
         <Grid container spacing={3}>
           <Grid item xs={12} md={6}>
             <TextField
               fullWidth
-              label="Full Name"
+              label="Full Name *"
               value={editedData.basicInfo.fullName}
               onChange={(e) => handleChange('basicInfo', 'fullName', e.target.value)}
               InputProps={{ readOnly: !isEditing }}
+              required
+              error={isEditing && !editedData.basicInfo.fullName}
+              helperText={isEditing && !editedData.basicInfo.fullName ? 'Full Name is required' : ''}
             />
           </Grid>
           <Grid item xs={12} md={6}>
             <TextField
               fullWidth
-              label="Contact Number"
+              label="Contact Number *"
               value={editedData.basicInfo.contactNumber}
               onChange={(e) => handleChange('basicInfo', 'contactNumber', e.target.value)}
               InputProps={{ readOnly: !isEditing }}
+              required
+              error={isEditing && !editedData.basicInfo.contactNumber}
+              helperText={isEditing && !editedData.basicInfo.contactNumber ? 'Contact Number is required' : ''}
             />
           </Grid>
           <Grid item xs={12} md={6}>
             <TextField
               fullWidth
-              label="Establishment Year"
+              label="Establishment Year *"
               value={editedData.basicInfo.establishmentYear}
               onChange={(e) => handleChange('basicInfo', 'establishmentYear', e.target.value)}
               InputProps={{ readOnly: !isEditing }}
-              helperText="Year when business was established"
+              helperText={isEditing && !editedData.basicInfo.establishmentYear ? 'Establishment Year is required' : 'Year when business was established'}
+              required
+              error={isEditing && !editedData.basicInfo.establishmentYear}
             />
           </Grid>
           <Grid item xs={12} md={6}>
             <TextField
               fullWidth
-              label="Address"
+              label="Address *"
               value={editedData.basicInfo.address}
               onChange={(e) => handleChange('basicInfo', 'address', e.target.value)}
               InputProps={{ readOnly: !isEditing }}
+              required
+              error={isEditing && !editedData.basicInfo.address}
+              helperText={isEditing && !editedData.basicInfo.address ? 'Address is required' : ''}
             />
           </Grid>
         </Grid>
@@ -221,26 +232,32 @@ const VendorProfile = () => {
 
       {/* Legal Information */}
       <Paper sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" sx={{ mb: 2 }}>
-          Legal Information
+        <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
+          Legal Information <span style={{ color: 'red', marginLeft: 4 }}>*</span>
         </Typography>
         <Grid container spacing={3}>
           <Grid item xs={12} md={6}>
             <TextField
               fullWidth
-              label="GSTIN"
+              label="GSTIN *"
               value={editedData.legalInfo.gstin}
               onChange={(e) => handleChange('legalInfo', 'gstin', e.target.value)}
               InputProps={{ readOnly: !isEditing }}
+              required
+              error={isEditing && !editedData.legalInfo.gstin}
+              helperText={isEditing && !editedData.legalInfo.gstin ? 'GSTIN is required' : ''}
             />
           </Grid>
           <Grid item xs={12} md={6}>
             <TextField
               fullWidth
-              label="FSSAI Number"
+              label="FSSAI Number *"
               value={editedData.legalInfo.fssaiNumber}
               onChange={(e) => handleChange('legalInfo', 'fssaiNumber', e.target.value)}
               InputProps={{ readOnly: !isEditing }}
+              required
+              error={isEditing && !editedData.legalInfo.fssaiNumber}
+              helperText={isEditing && !editedData.legalInfo.fssaiNumber ? 'FSSAI Number is required' : ''}
             />
           </Grid>
           <Grid item xs={12}>
@@ -264,53 +281,68 @@ const VendorProfile = () => {
 
       {/* Bank Account Details */}
       <Paper sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" sx={{ mb: 2 }}>
-          Bank Account Details
+        <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
+          Bank Account Details <span style={{ color: 'red', marginLeft: 4 }}>*</span>
         </Typography>
         <Grid container spacing={3}>
           <Grid item xs={12} md={6}>
             <TextField
               fullWidth
-              label="Account Holder Name"
+              label="Account Holder Name *"
               value={editedData.bankDetails.accountHolderName}
               onChange={(e) => handleChange('bankDetails', 'accountHolderName', e.target.value)}
               InputProps={{ readOnly: !isEditing }}
+              required
+              error={isEditing && !editedData.bankDetails.accountHolderName}
+              helperText={isEditing && !editedData.bankDetails.accountHolderName ? 'Account Holder Name is required' : ''}
             />
           </Grid>
           <Grid item xs={12} md={6}>
             <TextField
               fullWidth
-              label="Account Number"
+              label="Account Number *"
               value={editedData.bankDetails.accountNumber}
               onChange={(e) => handleChange('bankDetails', 'accountNumber', e.target.value)}
               InputProps={{ readOnly: !isEditing }}
+              required
+              error={isEditing && !editedData.bankDetails.accountNumber}
+              helperText={isEditing && !editedData.bankDetails.accountNumber ? 'Account Number is required' : ''}
             />
           </Grid>
           <Grid item xs={12} md={6}>
             <TextField
               fullWidth
-              label="IFSC Code"
+              label="IFSC Code *"
               value={editedData.bankDetails.ifscCode}
               onChange={(e) => handleChange('bankDetails', 'ifscCode', e.target.value)}
               InputProps={{ readOnly: !isEditing }}
+              required
+              error={isEditing && !editedData.bankDetails.ifscCode}
+              helperText={isEditing && !editedData.bankDetails.ifscCode ? 'IFSC Code is required' : ''}
             />
           </Grid>
           <Grid item xs={12} md={6}>
             <TextField
               fullWidth
-              label="Bank Name"
+              label="Bank Name *"
               value={editedData.bankDetails.bankName}
               onChange={(e) => handleChange('bankDetails', 'bankName', e.target.value)}
               InputProps={{ readOnly: !isEditing }}
+              required
+              error={isEditing && !editedData.bankDetails.bankName}
+              helperText={isEditing && !editedData.bankDetails.bankName ? 'Bank Name is required' : ''}
             />
           </Grid>
           <Grid item xs={12} md={6}>
             <TextField
               fullWidth
-              label="Branch"
+              label="Branch *"
               value={editedData.bankDetails.branch}
               onChange={(e) => handleChange('bankDetails', 'branch', e.target.value)}
               InputProps={{ readOnly: !isEditing }}
+              required
+              error={isEditing && !editedData.bankDetails.branch}
+              helperText={isEditing && !editedData.bankDetails.branch ? 'Branch is required' : ''}
             />
           </Grid>
         </Grid>
@@ -318,26 +350,32 @@ const VendorProfile = () => {
 
       {/* Menu Information */}
       <Paper sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" sx={{ mb: 2 }}>
-          Menu Information
+        <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
+          Menu Information <span style={{ color: 'red', marginLeft: 4 }}>*</span>
         </Typography>
         <Grid container spacing={3}>
           <Grid item xs={12} md={6}>
             <TextField
               fullWidth
-              label="Menu Type"
+              label="Menu Type *"
               value={editedData.menuInfo.menuType}
               onChange={(e) => handleChange('menuInfo', 'menuType', e.target.value)}
               InputProps={{ readOnly: !isEditing }}
+              required
+              error={isEditing && !editedData.menuInfo.menuType}
+              helperText={isEditing && !editedData.menuInfo.menuType ? 'Menu Type is required' : ''}
             />
           </Grid>
           <Grid item xs={12} md={6}>
             <TextField
               fullWidth
-              label="Meal Type"
+              label="Meal Type *"
               value={editedData.menuInfo.mealType}
               onChange={(e) => handleChange('menuInfo', 'mealType', e.target.value)}
               InputProps={{ readOnly: !isEditing }}
+              required
+              error={isEditing && !editedData.menuInfo.mealType}
+              helperText={isEditing && !editedData.menuInfo.mealType ? 'Meal Type is required' : ''}
             />
           </Grid>
           <Grid item xs={12}>
@@ -370,10 +408,13 @@ const VendorProfile = () => {
                 <Grid item xs={12} sm={6} md={4} key={day}>
                   <TextField
                     fullWidth
-                    label={day.charAt(0).toUpperCase() + day.slice(1)}
+                    label={`${day.charAt(0).toUpperCase() + day.slice(1)} *`}
                     value={item}
                     onChange={(e) => handleMenuItemChange(day, e.target.value)}
                     InputProps={{ readOnly: !isEditing }}
+                    required
+                    error={isEditing && !item}
+                    helperText={isEditing && !item ? `${day.charAt(0).toUpperCase() + day.slice(1)} is required` : ''}
                   />
                 </Grid>
               ))}
@@ -384,44 +425,56 @@ const VendorProfile = () => {
 
       {/* Business Hours & Pricing */}
       <Paper sx={{ p: 3 }}>
-        <Typography variant="h6" sx={{ mb: 2 }}>
-          Business Hours & Pricing
+        <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
+          Business Hours & Pricing <span style={{ color: 'red', marginLeft: 4 }}>*</span>
         </Typography>
         <Grid container spacing={3}>
           <Grid item xs={12} md={6}>
             <TextField
               fullWidth
-              label="Opening Time"
+              label="Opening Time *"
               value={editedData.businessHours.openingTime}
               onChange={(e) => handleChange('businessHours', 'openingTime', e.target.value)}
               InputProps={{ readOnly: !isEditing }}
+              required
+              error={isEditing && !editedData.businessHours.openingTime}
+              helperText={isEditing && !editedData.businessHours.openingTime ? 'Opening Time is required' : ''}
             />
           </Grid>
           <Grid item xs={12} md={6}>
             <TextField
               fullWidth
-              label="Closing Time"
+              label="Closing Time *"
               value={editedData.businessHours.closingTime}
               onChange={(e) => handleChange('businessHours', 'closingTime', e.target.value)}
               InputProps={{ readOnly: !isEditing }}
+              required
+              error={isEditing && !editedData.businessHours.closingTime}
+              helperText={isEditing && !editedData.businessHours.closingTime ? 'Closing Time is required' : ''}
             />
           </Grid>
           <Grid item xs={12} md={6}>
             <TextField
               fullWidth
-              label="15 Days Subscription Price"
+              label="15 Days Subscription Price *"
               value={editedData.businessHours.subscriptionPrice15Days}
               onChange={(e) => handleChange('businessHours', 'subscriptionPrice15Days', e.target.value)}
               InputProps={{ readOnly: !isEditing }}
+              required
+              error={isEditing && !editedData.businessHours.subscriptionPrice15Days}
+              helperText={isEditing && !editedData.businessHours.subscriptionPrice15Days ? '15 Days Subscription Price is required' : ''}
             />
           </Grid>
           <Grid item xs={12} md={6}>
             <TextField
               fullWidth
-              label="Monthly Subscription Price"
+              label="Monthly Subscription Price *"
               value={editedData.businessHours.subscriptionPriceMonthly}
               onChange={(e) => handleChange('businessHours', 'subscriptionPriceMonthly', e.target.value)}
               InputProps={{ readOnly: !isEditing }}
+              required
+              error={isEditing && !editedData.businessHours.subscriptionPriceMonthly}
+              helperText={isEditing && !editedData.businessHours.subscriptionPriceMonthly ? 'Monthly Subscription Price is required' : ''}
             />
           </Grid>
         </Grid>
@@ -430,4 +483,4 @@ const VendorProfile = () => {
   );
 };
 
-export default VendorProfile; 
+export default VendorProfile;

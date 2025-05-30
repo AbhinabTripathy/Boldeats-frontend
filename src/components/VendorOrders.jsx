@@ -260,6 +260,7 @@ const VendorOrders = () => {
     const filteredOrders = filterDataByDate(orders, activeTab);
     const csvData = filteredOrders.map(order => ({
       'Order ID': order.orderId,
+      'User ID': order.userId || '-',
       'Vendor ID': order.vendorId,
       'Customer Name': order.customerName,
       'Address': order.address,
@@ -270,7 +271,7 @@ const VendorOrders = () => {
     const worksheet = XLSX.utils.json_to_sheet(csvData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Orders');
-    XLSX.writeFile(workbook, 'orders.csv');
+    XLSX.writeFile(workbook, 'vendor_orders.csv');
   };
 
   const exportToPDF = () => {
@@ -281,9 +282,10 @@ const VendorOrders = () => {
     doc.addFont('https://fonts.gstatic.com/s/roboto/v29/KFOmCnqEu92Fr1Mu4mxP.ttf', 'Roboto', 'normal');
     doc.setFont('Roboto');
 
-    const tableColumn = ['Order ID', 'Vendor ID', 'Customer', 'Status', 'Date'];
+    const tableColumn = ['Order ID', 'User ID', 'Vendor ID', 'Customer', 'Status', 'Date'];
     const tableRows = filteredOrders.map(order => [
       order.orderId,
+      order.userId || '-',
       order.vendorId,
       order.customerName,
       order.status,
@@ -301,11 +303,12 @@ const VendorOrders = () => {
         cellPadding: 3
       },
       columnStyles: {
-        0: { cellWidth: 30 }, // Order ID
-        1: { cellWidth: 30 }, // Vendor ID
-        2: { cellWidth: 40 }, // Customer
-        3: { cellWidth: 30 }, // Status
-        4: { cellWidth: 30 } // Date
+        0: { cellWidth: 25 }, // Order ID
+        1: { cellWidth: 25 }, // User ID
+        2: { cellWidth: 25 }, // Vendor ID
+        3: { cellWidth: 40 }, // Customer
+        4: { cellWidth: 25 }, // Status
+        5: { cellWidth: 25 } // Date
       },
       headStyles: {
         fillColor: [41, 128, 185],
@@ -315,13 +318,14 @@ const VendorOrders = () => {
       }
     });
 
-    doc.save(`orders_${format(new Date(), 'dd-MM-yyyy')}.pdf`);
+    doc.save(`vendor_orders_${format(new Date(), 'dd-MM-yyyy')}.pdf`);
   };
 
   const exportToExcel = () => {
     const filteredOrders = filterDataByDate(orders, activeTab);
     const excelData = filteredOrders.map(order => ({
       'Order ID': order.orderId,
+      'User ID': order.userId || '-',
       'Vendor ID': order.vendorId,
       'Customer Name': order.customerName,
       'Address': order.address,
@@ -332,7 +336,7 @@ const VendorOrders = () => {
     const worksheet = XLSX.utils.json_to_sheet(excelData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Orders');
-    XLSX.writeFile(workbook, 'orders.xlsx');
+    XLSX.writeFile(workbook, 'vendor_orders.xlsx');
   };
 
   const handleAccept = (orderId) => {
@@ -367,6 +371,18 @@ const VendorOrders = () => {
       label: 'Order ID',
       width: 120,
       minWidth: 100
+    },
+    { 
+      id: 'userId', 
+      label: 'User ID',
+      width: 100,
+      minWidth: 80,
+      hide: isMobile && isTablet, // Hide on very small screens
+      render: (row) => {
+        // Safely handle the case when userId is undefined
+        const userId = row.userId || '-';
+        return userId;
+      }
     },
     { 
       id: 'customerName', 
@@ -691,4 +707,4 @@ const VendorOrders = () => {
   );
 };
 
-export default VendorOrders; 
+export default VendorOrders;
