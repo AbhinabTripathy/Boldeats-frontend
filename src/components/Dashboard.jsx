@@ -1,5 +1,5 @@
-import React from 'react';
-import { Box, Grid, Paper, Typography, Container, useMediaQuery, useTheme } from '@mui/material';
+import React, { useState, useEffect } from 'react';
+import { Box, Grid, Paper, Typography, Container, useMediaQuery, useTheme, CircularProgress } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { motion } from 'framer-motion';
 import { CurrencyRupee, ShoppingCart, People, Store } from '@mui/icons-material';
@@ -49,6 +49,58 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [dashboardData, setDashboardData] = useState({
+    totalOrders: 0,
+    totalRevenue: 0,
+    totalUsers: 0,
+    totalVendors: 0
+  });
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        const token = localStorage.getItem('adminToken');
+        if (!token) {
+          throw new Error('No authentication token found');
+        }
+
+        const response = await fetch('https://api.boldeats.in/api/admin/dashboard', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log('Dashboard API Response:', data);
+        
+        if (data.success) {
+          setDashboardData({
+            totalOrders: data.data.totalOrders || 0,
+            totalRevenue: data.data.totalRevenue || 0,
+            totalUsers: data.data.totalUsers || 0,
+            totalVendors: data.data.totalVendors || 0
+          });
+        } else {
+          throw new Error(data.message || 'Failed to fetch dashboard data');
+        }
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+        setError(error.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
 
   const cardVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -58,28 +110,28 @@ const Dashboard = () => {
   const cards = [
     {
       title: 'Total Orders',
-      value: '1,234',
+      value: dashboardData.totalOrders.toLocaleString(),
       icon: <ShoppingCart sx={{ fontSize: isMobile ? 36 : 48 }} />,
       color: 'linear-gradient(45deg, #FF6B6B 30%, #FF8E53 90%)',
       path: '/orders'
     },
     {
       title: 'Total Revenue',
-      value: formatIndianCurrency(4567800),
+      value: formatIndianCurrency(dashboardData.totalRevenue),
       icon: <CurrencyRupee sx={{ fontSize: isMobile ? 36 : 48 }} />,
       color: 'linear-gradient(45deg, #4CAF50 30%, #81C784 90%)',
       path: '/payments'
     },
     {
       title: 'Total Users',
-      value: '890',
+      value: dashboardData.totalUsers.toLocaleString(),
       icon: <People sx={{ fontSize: isMobile ? 36 : 48 }} />,
       color: 'linear-gradient(45deg, #9C27B0 30%, #BA68C8 90%)',
       path: '/users'
     },
     {
       title: 'Total Vendors',
-      value: '45',
+      value: dashboardData.totalVendors.toLocaleString(),
       icon: <Store sx={{ fontSize: isMobile ? 36 : 48 }} />,
       color: 'linear-gradient(45deg, #FF9800 30%, #FFCC80 90%)',
       path: '/vendors'
@@ -89,6 +141,37 @@ const Dashboard = () => {
   const handleCardClick = (path) => {
     navigate(path);
   };
+
+  if (loading) {
+    return (
+      <Box 
+        sx={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          alignItems: 'center', 
+          minHeight: 'calc(100vh - 64px)'
+        }}
+      >
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box 
+        sx={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          alignItems: 'center', 
+          minHeight: 'calc(100vh - 64px)',
+          color: 'error.main'
+        }}
+      >
+        <Typography variant="h6">Error: {error}</Typography>
+      </Box>
+    );
+  }
 
   return (
     <Box 

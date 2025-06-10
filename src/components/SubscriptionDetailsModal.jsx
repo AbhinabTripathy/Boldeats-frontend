@@ -24,7 +24,7 @@ const SubscriptionDetailsModal = ({ open, onClose, user }) => {
   if (!user) return null;
 
   // Calculate subscription end date
-  const startDate = new Date(user.subscriptionDate);
+  const startDate = new Date(user.startDate);
   const endDate = addDays(startDate, user.duration);
 
   // Mock data for order history - replace with actual data from your backend

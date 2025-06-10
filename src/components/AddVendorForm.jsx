@@ -49,7 +49,7 @@ const UploadButton = styled(Button)(({ theme }) => ({
   marginBottom: theme.spacing(1),
 }));
 
-const AddVendorForm = ({ open, handleClose }) => {
+const AddVendorForm = ({ open, handleClose, onVendorAdded }) => {
   // Add new state for form steps
   const [activeStep, setActiveStep] = useState(0);
   const [initialFormData, setInitialFormData] = useState({
@@ -110,7 +110,7 @@ const AddVendorForm = ({ open, handleClose }) => {
   // Validation errors
   const [errors, setErrors] = useState({});
 
-  // Add new state for password visibility
+  // Add new state for password
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
@@ -439,7 +439,11 @@ const AddVendorForm = ({ open, handleClose }) => {
     
     // Required fields validation
     if (!formData.name) newErrors.name = 'Vendor name is required';
-    if (!formData.email) newErrors.email = 'Email is required';
+    if (!formData.email) {
+      newErrors.email = 'Email is required';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = 'Please enter a valid email address';
+    }
     if (!formData.address) newErrors.address = 'Address is required';
     if (!formData.logo) newErrors.logo = 'Logo is required';
     if (!formData.fssai) newErrors.fssai = 'FSSAI number is required';
@@ -447,15 +451,24 @@ const AddVendorForm = ({ open, handleClose }) => {
     if (!formData.accountName) newErrors.accountName = 'Account holder name is required';
     if (!formData.accountNumber) newErrors.accountNumber = 'Account number is required';
     if (!formData.ifscCode) newErrors.ifscCode = 'IFSC code is required';
-    if (formData.menuSections.length === 0) newErrors.menuSections = 'At least one menu section is required';
     if (!formData.openingTime) newErrors.openingTime = 'Opening time is required';
     if (!formData.closingTime) newErrors.closingTime = 'Closing time is required';
-    if (!formData.menuType) newErrors.menuType = 'Menu type is required';
-    if (!formData.mealType) newErrors.mealType = 'Meal type is required';
     
-    // Email validation
-    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Please enter a valid email address';
+    // Menu sections validation
+    if (formData.menuSections.length === 0) {
+      newErrors.menuSections = 'At least one menu section is required';
+    } else {
+      formData.menuSections.forEach((section, index) => {
+        if (!section.menuType) {
+          newErrors[`menuSection${index}MenuType`] = `Menu type is required for section ${index + 1}`;
+        }
+        if (!section.mealType) {
+          newErrors[`menuSection${index}MealType`] = `Meal type is required for section ${index + 1}`;
+        }
+        if (section.menuItems.length === 0) {
+          newErrors[`menuSection${index}Items`] = `At least one menu item is required for section ${index + 1}`;
+        }
+      });
     }
     
     // IFSC code validation
@@ -488,33 +501,30 @@ const AddVendorForm = ({ open, handleClose }) => {
       setSubmitError('');
       
       try {
-        // Get auth token from localStorage
         const token = localStorage.getItem('adminToken');
-        
         if (!token) {
-          throw new Error('Authentication token not found. Please log in again.');
+          throw new Error('Authentication token not found');
         }
 
-        console.log('Using token for vendor submission:', token);
-        
-        // Create FormData object to handle file uploads
+        // Create FormData object
         const formDataToSend = new FormData();
         
-        // Add form fields to FormData in the required format
+        // Add basic fields
         formDataToSend.append('name', formData.name);
+        formDataToSend.append('phoneNumber', formData.phone);
         formDataToSend.append('email', formData.email);
         formDataToSend.append('address', formData.address);
-        formDataToSend.append('logo', formData.logo);
         formDataToSend.append('gstin', formData.gstin || '');
         formDataToSend.append('fssaiNumber', formData.fssai);
-        formDataToSend.append('fssaiCertificate', formData.fssaiFile);
         formDataToSend.append('accountHolderName', formData.accountName);
         formDataToSend.append('accountNumber', formData.accountNumber);
         formDataToSend.append('ifscCode', formData.ifscCode);
         formDataToSend.append('bankName', formData.bankName);
         formDataToSend.append('branch', formData.branch);
-        
-        // Format time values properly
+        formDataToSend.append('password', formData.password);
+        formDataToSend.append('confirmPassword', formData.confirmPassword);
+
+        // Format time values
         const formatTime = (date) => {
           if (!date) return '';
           return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
@@ -523,74 +533,173 @@ const AddVendorForm = ({ open, handleClose }) => {
         formDataToSend.append('openingTime', formatTime(formData.openingTime));
         formDataToSend.append('closingTime', formatTime(formData.closingTime));
         formDataToSend.append('subscriptionPriceMonthly', formData.monthlyPrice);
-        formDataToSend.append('menuType', formData.menuType);
-        formDataToSend.append('mealType', formData.mealType);
-        
-        // Calculate years in business for API submission
+        formDataToSend.append('subscriptionPrice15Days', formData.weeklyPrice);
+
+        // Calculate years in business
         const currentYear = new Date().getFullYear();
         const yearsInBusiness = formData.businessYear ? (currentYear - parseInt(formData.businessYear, 10)) : 0;
         formDataToSend.append('yearsInBusiness', yearsInBusiness.toString());
-        
-        // Add menu sections as JSON string
-        formDataToSend.append('menuSections', JSON.stringify(formData.menuSections));
-        
-        // Add menu photos
-        if (formData.menuPhotos.length > 0) {
-          formData.menuPhotos.forEach((photo, index) => {
-            formDataToSend.append('menuPhotos', photo);
+
+        // Function to compress image
+        const compressImage = async (file) => {
+          return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = (event) => {
+              const img = new Image();
+              img.src = event.target.result;
+              img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const MAX_WIDTH = 800;
+                const MAX_HEIGHT = 800;
+                let width = img.width;
+                let height = img.height;
+
+                if (width > height) {
+                  if (width > MAX_WIDTH) {
+                    height *= MAX_WIDTH / width;
+                    width = MAX_WIDTH;
+                  }
+                } else {
+                  if (height > MAX_HEIGHT) {
+                    width *= MAX_HEIGHT / height;
+                    height = MAX_HEIGHT;
+                  }
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                canvas.toBlob((blob) => {
+                  resolve(new File([blob], file.name, {
+                    type: 'image/jpeg',
+                    lastModified: Date.now(),
+                  }));
+                }, 'image/jpeg', 0.7);
+              };
+            };
           });
+        };
+
+        // Add and compress logo if exists
+        if (formData.logo) {
+          const compressedLogo = await compressImage(formData.logo);
+          formDataToSend.append('logo', compressedLogo);
         }
-        
-        // If GSTIN file is provided, add it
+
+        // Add and compress FSSAI certificate if exists
+        if (formData.fssaiFile) {
+          const compressedFssai = await compressImage(formData.fssaiFile);
+          formDataToSend.append('fssaiCertificate', compressedFssai);
+        }
+
+        // Add and compress GSTIN certificate if exists
         if (formData.gstinFile) {
-          formDataToSend.append('gstinCertificate', formData.gstinFile);
+          const compressedGstin = await compressImage(formData.gstinFile);
+          formDataToSend.append('gstinCertificate', compressedGstin);
         }
-        
-        // For debugging - log all form data being sent
-        console.log('Submitting form data:');
-        for (let [key, value] of formDataToSend.entries()) {
-          console.log(`${key}: ${value instanceof File ? value.name : value}`);
-        }
-        
-        // Make POST request to API
-        const response = await fetch('https://api.boldeats.in/api/vendors/add', {
-          method: 'POST',
-          headers: {
-            // Do not set Content-Type header when using FormData
-            // The browser will automatically set the correct Content-Type with boundary
-            'Authorization': `Bearer ${token}`
-          },
-          body: formDataToSend
+
+        // Get unique menu types and meal types
+        const menuTypes = [...new Set(formData.menuSections.map(section => section.menuType))];
+        const mealTypes = [...new Set(formData.menuSections.map(section => section.mealType))];
+
+        // Format menu sections
+        const formattedMenuSections = formData.menuSections.map((section, index) => {
+          const formattedMenuItems = section.menuItems.map(item => {
+            const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+            const menuItems = [];
+            
+            days.forEach(day => {
+              if (item[day] && item[day].trim()) {
+                menuItems.push({
+                  dayOfWeek: day.charAt(0).toUpperCase() + day.slice(1),
+                  items: [item[day].trim()]
+                });
+              }
+            });
+
+            return menuItems;
+          }).flat();
+
+          return {
+            menuType: section.menuType.charAt(0).toUpperCase() + section.menuType.slice(1),
+            mealType: section.mealType.charAt(0).toUpperCase() + section.mealType.slice(1),
+            sectionName: `Menu Section ${index + 1}`,
+            menuItems: formattedMenuItems
+          };
         });
-        
-        console.log('Response status:', response.status);
-        
-        const data = await response.json();
-        console.log('Response data:', data);
-        
-        if (!response.ok) {
-          if (response.status === 401) {
-            // Handle expired or invalid token
-            localStorage.removeItem('adminToken');
-            localStorage.removeItem('isAuthenticated');
-            throw new Error('Your session has expired. Please log in again.');
+
+        formDataToSend.append('menuType', JSON.stringify(menuTypes));
+        formDataToSend.append('mealTypes', JSON.stringify(mealTypes));
+        formDataToSend.append('menuSections', JSON.stringify(formattedMenuSections));
+
+        // Add and compress menu photos
+        if (formData.menuPhotos.length > 0) {
+          for (const photo of formData.menuPhotos) {
+            const compressedPhoto = await compressImage(photo);
+            formDataToSend.append('menuPhotos', compressedPhoto);
           }
-          throw new Error(data.message || 'Failed to add vendor');
         }
-        
-        // Log successful response
-        console.log('Vendor added successfully:', data);
-        
-        // Show success message
-        setSubmitSuccess(true);
-        
-        // Close dialog after short delay
-        setTimeout(() => {
-          handleClose();
-        }, 2000);
+
+        // Make POST request to API with retry logic
+        const maxRetries = 3;
+        let retryCount = 0;
+        let success = false;
+
+        while (retryCount < maxRetries && !success) {
+          try {
+            const response = await fetch('https://api.boldeats.in/api/vendors/addVendor', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${token}`
+              },
+              body: formDataToSend
+            });
+
+            if (response.status === 413) {
+              throw new Error('The uploaded files are too large. Please reduce the size of your images.');
+            }
+
+            if (!response.ok) {
+              const data = await response.json();
+              throw new Error(data.message || 'Failed to add vendor');
+            }
+
+            const data = await response.json();
+            console.log('API Response:', data);
+            success = true;
+            setSubmitSuccess(true);
+            
+            // Call the onVendorAdded callback if provided
+            if (onVendorAdded) {
+              onVendorAdded(data.data);
+            }
+            
+            setTimeout(() => {
+              handleClose();
+              // Refresh the vendor list after closing
+              if (onVendorAdded) {
+                onVendorAdded();
+              }
+            }, 2000);
+          } catch (error) {
+            retryCount++;
+            if (retryCount === maxRetries) {
+              throw error;
+            }
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+        }
+
       } catch (error) {
         console.error('Error adding vendor:', error);
-        setSubmitError(error.message || 'Failed to add vendor. Please try again.');
+        setSubmitError(
+          error.message.includes('Failed to fetch') 
+            ? 'Network error. Please check your connection and try again.'
+            : error.message || 'Failed to add vendor. Please try again.'
+        );
       } finally {
         setSubmitLoading(false);
       }
@@ -1085,7 +1194,6 @@ const AddVendorForm = ({ open, handleClose }) => {
                           label="Meal Type"
                           error={!!errors.mealType}
                         >
-                          <MenuItem value="breakfast">Breakfast</MenuItem>
                           <MenuItem value="lunch">Lunch</MenuItem>
                           <MenuItem value="dinner">Dinner</MenuItem>
                         </Select>

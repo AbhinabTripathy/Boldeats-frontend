@@ -4,57 +4,79 @@ import { GridOn, Refresh, FileUpload, Visibility, ImageNotSupported } from '@mui
 import AnimatedTable from './AnimatedTable';
 import * as XLSX from 'xlsx';
 import { format } from 'date-fns';
-import { useUsers } from '../contexts/UserContext';
-import { useVendors } from '../contexts/VendorContext';
 
 const PaymentsScreen = () => {
-  const { users, loading: usersLoading } = useUsers();
-  const { vendors, loading: vendorsLoading } = useVendors();
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('all');
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploadLoading, setUploadLoading] = useState({});
+  const [error, setError] = useState(null);
 
-  // Generate payment data based on user and vendor data
-  useEffect(() => {
-    if (users.length > 0 && vendors.length > 0) {
+  // Fetch payment data from API
+  const fetchPayments = async () => {
+    try {
       setLoading(true);
+      setError(null);
+      const token = localStorage.getItem('adminToken');
       
-      // Create payments based on user data
-      const generatedPayments = [];
-      let id = 1;
-      
-      users.forEach(user => {
-        if (user.payments && user.payments.length > 0) {
-          user.payments.forEach(paymentId => {
-            const paymentMethods = ['Credit Card', 'UPI', 'Net Banking', 'Debit Card'];
-            const amounts = [1499, 2499, 3499, 4999, 6999];
-            
-            const randomVendor = vendors[Math.floor(Math.random() * vendors.length)];
-            
-            generatedPayments.push({
-              id: id,
-              slNo: id,
-              paymentId: paymentId,
-              userId: user.id,
-              customerName: user.name,
-              vendorId: randomVendor.id,
-              vendorName: randomVendor.name,
-              paymentAmount: `₹${amounts[Math.floor(Math.random() * amounts.length)]}`,
-              paymentMethod: paymentMethods[Math.floor(Math.random() * paymentMethods.length)],
-              paymentStatus: Math.random() > 0.2 ? 'Completed' : (Math.random() > 0.5 ? 'Pending' : 'Failed'),
-              paymentScreenshot: user.paymentScreenshot || null, // Get screenshot from user data
-              adminPaymentProof: null // New field for admin uploaded payment proof
-            });
-            id++;
-          });
-        }
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
+      const response = await fetch('https://api.boldeats.in/api/admin/payments', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
       });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch payments');
+      }
+
+      const responseData = await response.json();
+      console.log('API Response:', responseData); // Debug log
+
+      // Check if responseData has a data property (common API pattern)
+      const data = responseData.data || responseData;
       
-      setPayments(generatedPayments);
+      // Ensure data is an array
+      if (!Array.isArray(data)) {
+        console.error('Unexpected API response format:', data);
+        throw new Error('Invalid data format received from API');
+      }
+      
+      // Transform the data to match our table structure
+      const transformedPayments = data.map((payment, index) => ({
+        id: payment.id || index + 1,
+        slNo: index + 1,
+        paymentId: payment.paymentId || `PAY${String(index + 1).padStart(6, '0')}`,
+        userId: payment.userId,
+        customerName: payment.customerName || payment.userName,
+        vendorId: payment.vendorId,
+        vendorName: payment.vendorName,
+        paymentAmount: `₹${payment.amount || 0}`,
+        paymentMethod: payment.paymentMethod || 'UPI',
+        paymentStatus: payment.status || 'Pending',
+        paymentScreenshot: payment.screenshot || null,
+        adminPaymentProof: payment.adminProof || null,
+        createdAt: payment.createdAt || new Date().toISOString()
+      }));
+
+      setPayments(transformedPayments);
+    } catch (err) {
+      setError(err.message);
+      console.error('Error fetching payments:', err);
+      setPayments([]); // Reset payments to empty array on error
+    } finally {
       setLoading(false);
     }
-  }, [users, vendors]);
+  };
+
+  useEffect(() => {
+    fetchPayments();
+  }, []);
 
   const handleScreenshotUpload = (paymentId) => (event) => {
     const file = event.target.files[0];
@@ -114,24 +136,7 @@ const PaymentsScreen = () => {
     { 
       id: 'paymentMethod', 
       label: 'Payment Method',
-      render: (row) => (
-        <FormControl size="small" sx={{ minWidth: 140 }}>
-          <Select
-            value={row.paymentMethod}
-            onChange={(e) => handlePaymentMethodRowChange(row.id, e.target.value)}
-            sx={{
-              '& .MuiSelect-select': {
-                padding: '8px 12px'
-              }
-            }}
-          >
-            <MenuItem value="Credit Card">Credit Card</MenuItem>
-            <MenuItem value="UPI">UPI</MenuItem>
-            <MenuItem value="Net Banking">Net Banking</MenuItem>
-            <MenuItem value="Debit Card">Debit Card</MenuItem>
-          </Select>
-        </FormControl>
-      )
+      render: (row) => row.paymentMethod
     },
     { 
       id: 'paymentStatus', 
@@ -253,14 +258,50 @@ const PaymentsScreen = () => {
     }
   };
 
-  const handlePaymentStatusChange = (paymentId, newStatus) => {
-    setPayments(prevPayments => 
-      prevPayments.map(payment => 
-        payment.id === paymentId 
-          ? { ...payment, paymentStatus: newStatus }
-          : payment
-      )
-    );
+  const handlePaymentStatusChange = async (paymentId, newStatus) => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
+      // Find the payment to get its paymentId
+      const payment = payments.find(p => p.id === paymentId);
+      if (!payment) {
+        throw new Error('Payment not found');
+      }
+
+      const response = await fetch(`https://api.boldeats.in/api/payment/approve/${payment.paymentId}`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: newStatus })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update payment status');
+      }
+
+      // Update local state only after successful API call
+      setPayments(prevPayments => 
+        prevPayments.map(payment => 
+          payment.id === paymentId 
+            ? { ...payment, paymentStatus: newStatus }
+            : payment
+        )
+      );
+
+      // Show success message or handle success case
+      console.log('Payment status updated successfully');
+    } catch (err) {
+      console.error('Error updating payment status:', err);
+      // Optionally show error message to user
+      setError(err.message);
+      // Refresh the payments list to ensure consistency
+      fetchPayments();
+    }
   };
 
   const handlePaymentMethodRowChange = (paymentId, newMethod) => {
@@ -304,9 +345,7 @@ const PaymentsScreen = () => {
   };
 
   const refreshData = () => {
-    setLoading(true);
-    // Simulate a refresh by waiting a bit then resetting the loading state
-    setTimeout(() => setLoading(false), 500);
+    fetchPayments();
   };
 
   return (
@@ -333,12 +372,8 @@ const PaymentsScreen = () => {
             </Select>
           </FormControl>
           <Tooltip title="Refresh Data">
-            <IconButton onClick={refreshData} disabled={loading || usersLoading || vendorsLoading}>
-              {loading || usersLoading || vendorsLoading ? (
-                <CircularProgress size={24} />
-              ) : (
-                <Refresh />
-              )}
+            <IconButton onClick={refreshData} disabled={loading}>
+              {loading ? <CircularProgress size={24} /> : <Refresh />}
             </IconButton>
           </Tooltip>
           <Tooltip title="Export to Excel">
@@ -352,18 +387,23 @@ const PaymentsScreen = () => {
                 width: 40,
                 height: 40
               }}
-              disabled={loading || usersLoading || vendorsLoading}
+              disabled={loading}
             >
               <GridOn color="success" />
             </IconButton>
           </Tooltip>
         </Stack>
       </Stack>
+      {error && (
+        <Typography color="error" sx={{ mb: 2 }}>
+          Error: {error}
+        </Typography>
+      )}
       <AnimatedTable
         columns={columns}
         data={filteredData}
         title={`Payments Table (${filteredData.length} payments)`}
-        loading={loading || usersLoading || vendorsLoading}
+        loading={loading}
       />
     </Box>
   );

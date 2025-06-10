@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Box, Typography, Stack } from '@mui/material';
 import AnimatedTable from './AnimatedTable';
 import { format } from 'date-fns';
@@ -12,56 +12,41 @@ const PastSubscribersScreen = () => {
     { id: 'endDate', label: 'End Date' },
   ];
 
-  // Sample data - replace with actual data from your backend
-  const data = [
-    {
-      id: 1,
-      userId: 'USER001',
-      name: 'John Doe',
-      vendorId: 'VEND001',
-      startDate: '2023-01-01',
-      endDate: '2023-12-31',
-    },
-    {
-      id: 2,
-      userId: 'USER002',
-      name: 'Jane Smith',
-      vendorId: 'VEND002',
-      startDate: '2023-02-15',
-      endDate: '2023-11-30',
-    },
-    {
-      id: 3,
-      userId: 'USER003',
-      name: 'Rajesh Kumar',
-      vendorId: 'VEND003',
-      startDate: '2023-03-01',
-      endDate: '2023-10-31',
-    },
-    {
-      id: 4,
-      userId: 'USER004',
-      name: 'Priya Sharma',
-      vendorId: 'VEND004',
-      startDate: '2023-04-15',
-      endDate: '2023-09-30',
-    },
-    {
-      id: 5,
-      userId: 'USER005',
-      name: 'Amit Patel',
-      vendorId: 'VEND005',
-      startDate: '2023-05-01',
-      endDate: '2023-08-31',
-    },
-  ];
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Format dates in the data
-  const formattedData = data.map(item => ({
-    ...item,
-    startDate: format(new Date(item.startDate), 'dd/MM/yyyy'),
-    endDate: format(new Date(item.endDate), 'dd/MM/yyyy'),
-  }));
+  const fetchData = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const token = localStorage.getItem('adminToken');
+      if (!token) throw new Error('No authentication token found. Please login again.');
+      const response = await fetch('https://api.boldeats.in/api/admin/users/past-subscribers', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      if (!response.ok) throw new Error('Failed to fetch data');
+      const result = await response.json();
+      // Assuming result is an array of users
+      const formatted = result.map(item => ({
+        ...item,
+        startDate: item.startDate ? format(new Date(item.startDate), 'dd/MM/yyyy') : '-',
+        endDate: item.endDate ? format(new Date(item.endDate), 'dd/MM/yyyy') : '-',
+      }));
+      setData(formatted);
+    } catch (err) {
+      setError(err.message || 'Error fetching data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
 
   return (
     <Box sx={{ p: 3, mt: 8 }}>
@@ -72,7 +57,7 @@ const PastSubscribersScreen = () => {
       </Stack>
       <AnimatedTable
         columns={columns}
-        data={formattedData}
+        data={data}
         title="Past Subscribers Table"
       />
     </Box>

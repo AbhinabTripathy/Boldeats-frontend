@@ -13,10 +13,16 @@ import {
   List,
   ListItem,
   ListItemText,
-  Paper
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow
 } from '@mui/material';
 import { FileDownload as FileDownloadIcon } from '@mui/icons-material';
-import { format, addDays, isSameDay } from 'date-fns';
+import { format, addDays, isSameDay, isValid, parseISO } from 'date-fns';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
@@ -130,6 +136,17 @@ const VendorActiveUserDetails = ({ open, onClose, user }) => {
     doc.save(`vendor_active_user_${user.userId}_${format(new Date(), 'dd-MM-yyyy')}.pdf`);
   };
 
+  function safeFormatDate(dateStr, dateFormat = 'yyyy-MM-dd') {
+    if (!dateStr) return 'N/A';
+    let dateObj = typeof dateStr === 'string' ? parseISO(dateStr) : dateStr;
+    if (!isValid(dateObj)) return 'N/A';
+    try {
+      return format(dateObj, dateFormat);
+    } catch {
+      return 'N/A';
+    }
+  }
+
   return (
     <Dialog 
       open={open} 
@@ -148,16 +165,16 @@ const VendorActiveUserDetails = ({ open, onClose, user }) => {
             <Grid item xs={12} md={6}>
               <Paper elevation={0} sx={{ p: 2, bgcolor: 'background.default' }}>
                 <Typography variant="subtitle2" color="text.secondary">User Information</Typography>
-                <Typography variant="body1">{user.name}</Typography>
-                <Typography variant="body2" color="text.secondary">ID: {user.userId}</Typography>
-                <Typography variant="body2" color="text.secondary">Vendor ID: {user.vendorId}</Typography>
+                <Typography variant="body1">{user.name || 'N/A'}</Typography>
+                <Typography variant="body2" color="text.secondary">ID: {user.userId || 'N/A'}</Typography>
+                <Typography variant="body2" color="text.secondary">Vendor ID: {user.vendorId || 'N/A'}</Typography>
               </Paper>
             </Grid>
             <Grid item xs={12} md={6}>
               <Paper elevation={0} sx={{ p: 2, bgcolor: 'background.default' }}>
                 <Typography variant="subtitle2" color="text.secondary">Subscription Summary</Typography>
-                <Typography variant="body1">Duration: {user.duration} days</Typography>
-                <Typography variant="body1">Amount Paid: {user.pendingBalance}</Typography>
+                <Typography variant="body1">Duration: {user.duration || 'N/A'} days</Typography>
+                <Typography variant="body1">Amount Paid: {user.pendingBalance || 'N/A'}</Typography>
               </Paper>
             </Grid>
           </Grid>
@@ -172,10 +189,10 @@ const VendorActiveUserDetails = ({ open, onClose, user }) => {
               <Paper elevation={0} sx={{ p: 2, bgcolor: 'background.default' }}>
                 <Typography variant="subtitle2" color="text.secondary">Original Dates</Typography>
                 <Typography variant="body1">
-                  Start: {format(startDate, 'dd/MM/yyyy')}
+                  Start: {safeFormatDate(user.subscriptionDate)}
                 </Typography>
                 <Typography variant="body1">
-                  End: {format(endDate, 'dd/MM/yyyy')}
+                  End: {safeFormatDate(endDate)}
                 </Typography>
               </Paper>
             </Grid>
@@ -183,10 +200,10 @@ const VendorActiveUserDetails = ({ open, onClose, user }) => {
               <Paper elevation={0} sx={{ p: 2, bgcolor: 'background.default' }}>
                 <Typography variant="subtitle2" color="text.secondary">Adjusted Dates</Typography>
                 <Typography variant="body1">
-                  Start: {format(startDate, 'dd/MM/yyyy')}
+                  Start: {safeFormatDate(user.subscriptionDate)}
                 </Typography>
                 <Typography variant="body1" color={missedDays > 0 ? 'error.main' : 'success.main'}>
-                  End: {format(adjustedEndDate, 'dd/MM/yyyy')}
+                  End: {safeFormatDate(adjustedEndDate)}
                   {missedDays > 0 && ` (+${missedDays} days)`}
                 </Typography>
               </Paper>
@@ -209,7 +226,7 @@ const VendorActiveUserDetails = ({ open, onClose, user }) => {
                 }}
               >
                 <ListItemText
-                  primary={format(new Date(order.date), 'dd/MM/yyyy')}
+                  primary={safeFormatDate(order.date)}
                   secondary={getStatusLabel(order.status)}
                 />
                 <Chip

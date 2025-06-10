@@ -9,136 +9,114 @@ import {
   Paper,
   Alert,
   CircularProgress,
-  Tabs,
-  Tab,
   InputAdornment,
-  IconButton
+  IconButton,
+  ToggleButtonGroup,
+  ToggleButton
 } from '@mui/material';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
-import StoreIcon from '@mui/icons-material/Store';
+import StorefrontIcon from '@mui/icons-material/Storefront';
 import { Visibility, VisibilityOff } from '@mui/icons-material';
 
-// Static vendor data for testing
-const STATIC_VENDORS = [
-  {
-    phone: '9876543210',
-    password: 'vendor123',
-    vendorData: {
-      id: 'V001',
-      name: 'Test Vendor',
-      businessName: 'Food Corner',
-      email: 'vendor@test.com',
-      phone: '9876543210',
-      address: '123 Food Street, City',
-      businessType: 'Restaurant',
-      description: 'Serving delicious meals since 2020'
-    }
-  },
-  {
-    phone: '9876543211',
-    password: 'vendor456',
-    vendorData: {
-      id: 'V002',
-      name: 'Sample Vendor',
-      businessName: 'Tasty Bites',
-      email: 'vendor2@test.com',
-      phone: '9876543211',
-      address: '456 Food Avenue, City',
-      businessType: 'Bakery',
-      description: 'Fresh baked goods daily'
-    }
-  }
-];
-
 const Login = () => {
-    const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState(0); // 0: Vendor, 1: Admin
+  const navigate = useNavigate();
+  const [loginType, setLoginType] = useState('admin');
   const [formData, setFormData] = useState({
     email: '',
+    phoneNumber: '',
     password: '',
-    phone: '',
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  const handleTabChange = (event, newValue) => {
-    setActiveTab(newValue);
-    setError('');
-    setFormData({
-      email: '',
-      password: '',
-      phone: '',
-    });
+  const handleLoginTypeChange = (event, newType) => {
+    if (newType !== null) {
+      setLoginType(newType);
+      setFormData({
+        email: '',
+        phoneNumber: '',
+        password: '',
+      });
+      setError('');
+    }
   };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData({
-      ...formData,
+    setFormData(prev => ({
+      ...prev,
       [name]: value,
-    });
-    setError('');
+    }));
   };
 
   const handleClickShowPassword = () => {
-    setShowPassword(!showPassword);
+    setShowPassword(prev => !prev);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (loading) return;
+
     setLoading(true);
     setError('');
 
     try {
-      if (activeTab === 1) {
-        // Admin login - using existing API
-        const response = await fetch('https://api.boldeats.in/api/admin/login', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            email: formData.email,
-            password: formData.password
-          }),
-        });
+      const endpoint = loginType === 'admin'
+        ? 'https://api.boldeats.in/api/admin/login'
+        : 'https://api.boldeats.in/api/vendors/login';
 
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data.message || 'Login failed');
+      const requestBody = loginType === 'admin'
+        ? {
+          email: formData.email,
+          password: formData.password
         }
+        : {
+          phoneNumber: formData.phoneNumber,
+          password: formData.password
+        };
 
-        const token = data.data && data.data.token;
-        if (!token) {
-          throw new Error('No authentication token received from server');
-        }
+      console.log('Sending request to:', endpoint);
+      console.log('Request body:', requestBody);
 
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      const data = await response.json();
+      console.log('API Response:', data);
+
+      if (!response.ok) {
+        const errorMessage = data.message || data.error || 'Login failed';
+        console.error('Login Error:', errorMessage);
+        throw new Error(errorMessage);
+      }
+
+      const token = data.data?.token;
+      if (!token) {
+        console.error('No token in response:', data);
+        throw new Error('No authentication token received from server');
+      }
+
+      // Store authentication data
+      if (loginType === 'admin') {
         localStorage.setItem('adminToken', token);
         localStorage.setItem('isAuthenticated', 'true');
-        localStorage.setItem('adminUser', JSON.stringify(data.data && data.data.admin || {}));
+        localStorage.setItem('adminUser', JSON.stringify(data.data?.admin || {}));
         navigate('/');
       } else {
-        // Vendor login - using static data
-        const vendor = STATIC_VENDORS.find(v => 
-          v.phone === formData.phone && v.password === formData.password
-        );
-
-        if (!vendor) {
-          throw new Error('Invalid phone number or password');
-        }
-
-        // Simulate API response delay
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
-        // Store vendor data
-        localStorage.setItem('vendorToken', 'static-vendor-token-' + vendor.vendorData.id);
+        localStorage.setItem('vendorToken', token);
         localStorage.setItem('isVendorAuthenticated', 'true');
-        localStorage.setItem('vendorUser', JSON.stringify(vendor.vendorData));
+        localStorage.setItem('vendorUser', JSON.stringify(data.data?.vendor || {}));
         navigate('/vendor');
       }
     } catch (err) {
+      console.error('Login Error Details:', err);
       setError(err.message || 'Authentication failed. Please try again.');
     } finally {
       setLoading(false);
@@ -166,61 +144,30 @@ const Login = () => {
             backgroundColor: 'white',
           }}
         >
-          <Typography component="h1" variant="h5" sx={{ mb: 3 }}>
-            BoldEats Login
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+            {loginType === 'admin' ? (
+              <AdminPanelSettingsIcon sx={{ mr: 1, fontSize: 28 }} />
+            ) : (
+              <StorefrontIcon sx={{ mr: 1, fontSize: 28 }} />
+            )}
+            <Typography component="h1" variant="h5">
+              {loginType === 'admin' ? 'BoldEats Admin Login' : 'BoldEats Vendor Login'}
+            </Typography>
+          </Box>
 
-          <Tabs 
-            value={activeTab} 
-            onChange={handleTabChange} 
-            sx={{ 
-              mb: 3, 
-              width: '100%',
-              '& .MuiTabs-flexContainer': {
-                gap: '20px',
-                justifyContent: 'center'
-              },
-              '& .MuiTab-root': {
-                borderRadius: '8px',
-                border: '1px solid #e0e0e0',
-                minWidth: '160px',
-                transition: 'all 0.3s ease',
-                '&:hover': {
-                  backgroundColor: '#f5f5f5',
-                },
-                '&.Mui-selected': {
-                  backgroundColor: '#1976d2',
-                  color: 'white',
-                  '& .MuiSvgIcon-root': {
-                    color: 'white'
-                  }
-                }
-              }
-            }}
+          <ToggleButtonGroup
+            value={loginType}
+            exclusive
+            onChange={handleLoginTypeChange}
+            sx={{ mb: 3 }}
           >
-            <Tab 
-              icon={<StoreIcon />} 
-              iconPosition="start" 
-              label="Vendor Login" 
-              sx={{ 
-                minHeight: '48px',
-                '& .MuiTab-iconWrapper': {
-                  marginRight: '8px',
-                }
-              }}
-            />
-            <Tab 
-              icon={<AdminPanelSettingsIcon />} 
-              iconPosition="start" 
-              label="Admin Login" 
-              sx={{ 
-                minHeight: '48px',
-                '& .MuiTab-iconWrapper': {
-                  marginRight: '8px',
-                }
-              }}
-            />
-          </Tabs>
+            <ToggleButton value="admin">
+              Admin
+            </ToggleButton>
+            <ToggleButton value="vendor">
+              Vendor
+            </ToggleButton>
+          </ToggleButtonGroup>
 
           {error && (
             <Alert severity="error" sx={{ width: '100%', mb: 2 }}>
@@ -229,95 +176,78 @@ const Login = () => {
           )}
 
           <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1, width: '100%' }}>
-            {activeTab === 0 ? (
-              // Vendor Login Form
-              <>
-                <TextField
-                  margin="normal"
-                  required
-                  fullWidth
-                  id="phone"
-                  label="Phone Number"
-                  name="phone"
-                  autoComplete="tel"
-                  autoFocus
-                  value={formData.phone}
-                  onChange={handleChange}
-                  disabled={loading}
-                  helperText="Try: 9876543210 (password: vendor123)"
-                />
-                <TextField
-                  margin="normal"
-                  required
-                  fullWidth
-                  name="password"
-                  label="Password"
-                  type={showPassword ? 'text' : 'password'}
-                  id="password"
-                  autoComplete="current-password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  disabled={loading}
-                  InputProps={{
-                    endAdornment: (
-                      <InputAdornment position="end">
-                        <IconButton
-                          aria-label="toggle password visibility"
-                          onClick={handleClickShowPassword}
-                          edge="end"
-                        >
-                          {showPassword ? <VisibilityOff /> : <Visibility />}
-                        </IconButton>
-                      </InputAdornment>
-                    ),
-                  }}
-                />
-              </>
+            {loginType === 'admin' ? (
+              <TextField
+                margin="normal"
+                required
+                fullWidth
+                id="email"
+                label="Email Address"
+                name="email"
+                autoComplete="email"
+                autoFocus
+                value={formData.email}
+                onChange={handleChange}
+                disabled={loading}
+                onKeyDown={(e) => {
+                  if (e.key === ' ') {
+                    e.preventDefault();
+                  }
+                }}  
+              />
             ) : (
-              // Admin Login Form
-              <>
-                <TextField
-                  margin="normal"
-                  required
-                  fullWidth
-                  id="email"
-                  label="Email Address"
-                  name="email"
-                  autoComplete="email"
-                  autoFocus
-                  value={formData.email}
-                  onChange={handleChange}
-                  disabled={loading}
-                />
-                <TextField
-                  margin="normal"
-                  required
-                  fullWidth
-                  name="password"
-                  label="Password"
-                  type={showPassword ? 'text' : 'password'}
-                  id="password"
-                  autoComplete="current-password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  disabled={loading}
-                  InputProps={{
-                    endAdornment: (
-                      <InputAdornment position="end">
-                        <IconButton
-                          aria-label="toggle password visibility"
-                          onClick={handleClickShowPassword}
-                          edge="end"
-                        >
-                          {showPassword ? <VisibilityOff /> : <Visibility />}
-                        </IconButton>
-                      </InputAdornment>
-                    ),
-                  }}
-                />
-              </>
+              <TextField
+                margin="normal"
+                required
+                fullWidth
+                id="phoneNumber"
+                label="Phone Number"
+                name="phoneNumber"
+                autoComplete="tel"
+                autoFocus
+                value={formData.phoneNumber}
+                onChange={handleChange}
+                disabled={loading}
+                onKeyDown={(e) => {
+                  if (e.key === ' ') {
+                    e.preventDefault();
+                  }
+                }}
+              />
             )}
-            
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              name="password"
+              label="Password"
+              type={showPassword ? 'text' : 'password'}
+              id="password"
+              autoComplete="current-password"
+              value={formData.password}
+              onChange={handleChange}
+              disabled={loading}
+              onKeyDown={(e) => {
+                if (e.key === ' ') {
+                  e.preventDefault();
+                }
+              }} 
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      aria-label="toggle password visibility"
+                      onClick={handleClickShowPassword}
+                      edge="end"
+                      disabled={loading}
+                    >
+                      {showPassword ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+            />
+
             <Button
               type="submit"
               fullWidth
@@ -325,7 +255,7 @@ const Login = () => {
               sx={{ mt: 3, mb: 2 }}
               disabled={loading}
             >
-              {loading ? <CircularProgress size={24} /> : `Sign In as ${activeTab === 0 ? 'Vendor' : 'Admin'}`}
+              {loading ? <CircularProgress size={24} /> : 'Sign In'}
             </Button>
           </Box>
         </Paper>

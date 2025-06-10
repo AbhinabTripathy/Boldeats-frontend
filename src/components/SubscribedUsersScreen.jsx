@@ -22,7 +22,7 @@ import { useUsers } from '../contexts/UserContext';
 import { useVendors } from '../contexts/VendorContext';
 
 const ActiveUsersScreen = () => {
-  const { users, loading: usersLoading } = useUsers();
+  const { users, loading: usersLoading, fetchActiveUsers } = useUsers();
   const { vendors, loading: vendorsLoading } = useVendors();
   const [activeUsers, setActiveUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -37,61 +37,49 @@ const ActiveUsersScreen = () => {
     const startDate = typeof subscriptionDate === 'string' 
       ? parseISO(subscriptionDate) 
       : new Date(subscriptionDate);
-    const cycleEndDate = addDays(startDate, duration);
     
-    // Calculate days remaining
-    const daysRemaining = differenceInDays(cycleEndDate, today);
+    // Calculate days since subscription started
+    const daysSinceStart = differenceInDays(today, startDate);
     
-    return daysRemaining > 0 ? daysRemaining : 0;
+    // Calculate remaining days
+    const remainingDays = duration - daysSinceStart;
+    
+    return remainingDays > 0 ? remainingDays : 0;
   };
 
   // Transform user data into active subscribers
   useEffect(() => {
-    if (users.length > 0 && vendors.length > 0) {
-      setLoading(true);
-      
-      // Filter active subscribers
-      const subscribers = users
-        .filter(user => user.subscriptionStatus === 'active')
-        .map(user => {
-          // Generate random subscription details
-          const durations = [15, 30];
-          const duration = durations[Math.floor(Math.random() * durations.length)];
-          
-          // Use join date as subscription date
-          const subscriptionDate = user.joinDate;
-          
-          // Random pending balance
-          const pendingBalances = ['₹1,499', '₹1,999', '₹2,499', '₹2,999'];
-          const pendingBalance = pendingBalances[Math.floor(Math.random() * pendingBalances.length)];
-          
-          // Get a random active vendor
-          const activeVendors = vendors.filter(v => v.status === 'Active');
-          const randomVendor = activeVendors.length > 0 
-            ? activeVendors[Math.floor(Math.random() * activeVendors.length)] 
-            : vendors[0];
-          
-          return {
-            id: user.id,
-            userId: user.id,
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const usersArray = await fetchActiveUsers();
+        console.log('Fetched active users:', usersArray);
+        if (usersArray.length > 0) {
+          // Transform the data to match our table structure
+          const subscribers = usersArray.map(user => ({
+            userId: user.userId || user.id,
             name: user.name,
-            vendorId: randomVendor.id,
-            vendorName: randomVendor.name,
-            duration: duration,
-            subscriptionDate: subscriptionDate,
-            pendingBalance: pendingBalance,
-            countdown: calculateCountdown(subscriptionDate, duration),
-            email: user.email,
-            phone: user.phone,
-            address: user.address,
+            vendorId: user.vendorId,
+            duration: parseInt(user.subscriptionType) || 30, // Extract number from "30 days"
+            startDate: user.startDate,
+            pendingBalance: user.pendingBalance,
+            countdown: calculateCountdown(user.startDate, parseInt(user.subscriptionType) || 30),
+            subscriptionType: user.subscriptionType,
             profilePic: user.profilePic
-          };
-        });
-      
-      setActiveUsers(subscribers);
-      setLoading(false);
-    }
-  }, [users, vendors]);
+          }));
+          setActiveUsers(subscribers);
+        } else {
+          setActiveUsers([]);
+        }
+      } catch (error) {
+        console.error('Error fetching active users:', error);
+        setActiveUsers([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []); // Remove fetchActiveUsers from dependencies since it's stable
 
   // Function to render countdown chip with appropriate color
   const renderCountdownChip = (countdown) => {
@@ -172,14 +160,14 @@ const ActiveUsersScreen = () => {
               <Table stickyHeader aria-label="active users table">
                 <TableHead>
                   <TableRow>
-                    <TableCell>User ID</TableCell>
-                    <TableCell>Name</TableCell>
-                    <TableCell>Vendor ID</TableCell>
-                    <TableCell>Subscription Type</TableCell>
-                    <TableCell>Start Date</TableCell>
-                    <TableCell>Pending Balance</TableCell>
-                    <TableCell>Countdown</TableCell>
-                    <TableCell>Actions</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }}>User ID</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }}>Name</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }}>Vendor ID</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }}>Subscription Type</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }}>Start Date</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }}>Pending Balance</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }}>Countdown</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }}>Actions</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -207,7 +195,7 @@ const ActiveUsersScreen = () => {
                         </TableCell>
                         <TableCell>{user.vendorId}</TableCell>
                         <TableCell>{renderSubscriptionDurationChip(user.duration)}</TableCell>
-                        <TableCell>{formatDate(user.subscriptionDate)}</TableCell>
+                        <TableCell>{formatDate(user.startDate)}</TableCell>
                         <TableCell>{user.pendingBalance}</TableCell>
                         <TableCell>{renderCountdownChip(user.countdown)}</TableCell>
                         <TableCell>

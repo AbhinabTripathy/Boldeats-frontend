@@ -15,7 +15,7 @@ const UsersScreen = () => {
   };
 
   const columns = [
-    { id: 'id', label: 'User ID' },
+    { id: 'userId', label: 'User ID' },
     { 
       id: 'name', 
       label: 'User Name',
@@ -39,13 +39,17 @@ const UsersScreen = () => {
         </Box>
       )
     },
-    { id: 'phone', label: 'Phone Number' },
+    { id: 'phoneNumber', label: 'Phone Number' },
     { id: 'address', label: 'Address' },
     { id: 'email', label: 'Email' },
     { 
       id: 'joinDate', 
       label: 'Join Date',
-      render: (row) => format(new Date(row.joinDate), 'dd/MM/yyyy')
+      render: (row) => {
+        if (!row.joinDate) return '-';
+        const date = new Date(row.joinDate);
+        return isNaN(date) ? '-' : format(date, 'dd/MM/yyyy');
+      }
     }
   ];
 

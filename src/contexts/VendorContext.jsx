@@ -87,6 +87,7 @@ export const VendorProvider = ({ children }) => {
   const fetchVendors = async () => {
     try {
       setLoading(true);
+      setError(null);
       // In a real app, this would be an API call:
       // const response = await fetch('https://api.example.com/vendors');
       // const data = await response.json();
@@ -96,11 +97,11 @@ export const VendorProvider = ({ children }) => {
       await new Promise(resolve => setTimeout(resolve, 500));
       
       setVendors(sampleVendors);
-      setLoading(false);
     } catch (err) {
       setError('Failed to load vendors. Please try again later.');
-      setLoading(false);
       console.error('Error fetching vendors:', err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -141,11 +142,35 @@ export const VendorProvider = ({ children }) => {
 
   // Load vendors on component mount
   useEffect(() => {
-    fetchVendors();
+    let isMounted = true;
+    const loadVendors = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        // Simulate API delay
+        await new Promise(resolve => setTimeout(resolve, 500));
+        if (isMounted) {
+          setVendors(sampleVendors);
+        }
+      } catch (err) {
+        if (isMounted) {
+          setError('Failed to load vendors. Please try again later.');
+          console.error('Error fetching vendors:', err);
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+    loadVendors();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // Context value
-  const value = {
+  const value = React.useMemo(() => ({
     vendors,
     loading,
     error,
@@ -155,7 +180,7 @@ export const VendorProvider = ({ children }) => {
     addVendor,
     toggleVendorStatus,
     deleteVendor
-  };
+  }), [vendors, loading, error]);
 
   return (
     <VendorContext.Provider value={value}>

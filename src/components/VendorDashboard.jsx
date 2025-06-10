@@ -1,8 +1,9 @@
-import React from 'react';
-import { Box, Grid, Paper, Typography, Container, useTheme } from '@mui/material';
+import React, { useState, useEffect } from 'react';
+import { Box, Grid, Paper, Typography, Container, useTheme, CircularProgress } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { motion } from 'framer-motion';
 import { CurrencyRupee, ShoppingCart, People } from '@mui/icons-material';
+import axios from 'axios';
 
 const StyledPaper = styled(Paper)(({ theme }) => ({
   padding: theme.spacing(3),
@@ -51,18 +52,45 @@ const formatIndianCurrency = (amount) => {
 
 const VendorDashboard = () => {
   const theme = useTheme();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [dashboardData, setDashboardData] = useState({
+    totalOrders: 0,
+    totalRevenue: 0,
+    activeUsers: 0
+  });
+  const fetchDashboardData = async () => {
+    try {
+      const token = localStorage.getItem('vendorToken'); // Assuming token is stored in localStorage
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
 
-  // Static data for one vendor
-  const dashboardData = {
-    totalOrders: 120,
-    totalRevenue: 85000,
-    activeUsers: 34
+      const vendorUser = JSON.parse(localStorage.getItem('vendorUser'));
+      const vendorId = vendorUser.id;
+
+      const response = await axios.get(`https://api.boldeats.in/api/vendors/dashboard/${vendorId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      setDashboardData(response.data.data);
+      setLoading(false);
+    } catch (err) {
+      setError(err.message);
+      setLoading(false);
+    }
   };
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
 
   const cards = [
     {
       title: 'Total Orders',
-      value: dashboardData.totalOrders.toString(),
+      value: dashboardData.totalOrders,
       icon: <ShoppingCart />,
       color: '#FF6B6B',
     },
@@ -74,11 +102,31 @@ const VendorDashboard = () => {
     },
     {
       title: 'Active Users',
-      value: dashboardData.activeUsers.toString(),
+      value: dashboardData.totalUsers,
       icon: <People />,
       color: '#2196F3',
     },
   ];
+
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box sx={{ py: 4 }}>
+        <Container maxWidth="lg">
+          <Typography color="error" variant="h6">
+            Error: {error}
+          </Typography>
+        </Container>
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ py: 4 }}>

@@ -1,23 +1,54 @@
-import React from 'react';
-import { Box, Typography, Stack, useTheme, useMediaQuery } from '@mui/material';
+import React, { useState, useEffect } from 'react';
+import { Box, Typography, Stack, useTheme, useMediaQuery, CircularProgress } from '@mui/material';
 import AnimatedTable from './AnimatedTable';
-import { format, isValid } from 'date-fns';
+import { format, isValid, parseISO } from 'date-fns';
+import axios from 'axios';
 
 const VendorPastSubscribers = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const isTablet = useMediaQuery(theme.breakpoints.down('md'));
 
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
   // Helper function to safely format dates
   const formatDate = (dateString) => {
     try {
-      const date = new Date(dateString);
+      if (!dateString) return '-';
+      const date = typeof dateString === 'string' ? parseISO(dateString) : dateString;
       return isValid(date) ? format(date, 'dd/MM/yyyy') : '-';
     } catch (error) {
-      console.error('Error formatting date:', error);
       return '-';
     }
   };
+
+  useEffect(() => {
+    const fetchPastSubscribers = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const token = localStorage.getItem('vendorToken');
+        const vendorUser = JSON.parse(localStorage.getItem('vendorUser'));
+        const vendorId = vendorUser?.id;
+        if (!token || !vendorId) throw new Error('No authentication token or vendor ID found');
+        const response = await axios.get(`https://api.boldeats.in/api/vendors/past-subscribers/${vendorId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        setData(response.data.data || []);
+      } catch (err) {
+        setError(err.message || 'Failed to fetch past subscribers');
+        setData([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchPastSubscribers();
+  }, []);
 
   const columns = [
     { 
@@ -89,61 +120,11 @@ const VendorPastSubscribers = () => {
         try {
           return `₹${Number(row.totalAmount).toLocaleString('en-IN')}`;
         } catch (error) {
-          console.error('Error formatting amount:', error);
           return '₹0';
         }
       }
     }
   ].filter(col => !col.hide);
-
-  // Sample data - replace with actual data from your backend
-  const data = [
-    {
-      id: 1,
-      userId: 'USER001',
-      name: 'John Doe',
-      startDate: '2023-01-01',
-      endDate: '2023-12-31',
-      subscriptionType: 'Monthly',
-      totalAmount: 1499
-    },
-    {
-      id: 2,
-      userId: 'USER002',
-      name: 'Jane Smith',
-      startDate: '2023-02-15',
-      endDate: '2023-11-30',
-      subscriptionType: 'Quarterly',
-      totalAmount: 3999
-    },
-    {
-      id: 3,
-      userId: 'USER003',
-      name: 'Rajesh Kumar',
-      startDate: '2023-03-01',
-      endDate: '2023-10-31',
-      subscriptionType: 'Monthly',
-      totalAmount: 1499
-    },
-    {
-      id: 4,
-      userId: 'USER004',
-      name: 'Priya Sharma',
-      startDate: '2023-04-15',
-      endDate: '2023-09-30',
-      subscriptionType: 'Quarterly',
-      totalAmount: 3999
-    },
-    {
-      id: 5,
-      userId: 'USER005',
-      name: 'Amit Patel',
-      startDate: '2023-05-01',
-      endDate: '2023-08-31',
-      subscriptionType: 'Monthly',
-      totalAmount: 1499
-    },
-  ];
 
   return (
     <Box sx={{ 
@@ -169,17 +150,27 @@ const VendorPastSubscribers = () => {
           Past Subscribers
         </Typography>
       </Stack>
-      <AnimatedTable
-        columns={columns}
-        data={data}
-        title={`Past Subscribers Table (${data.length} subscribers)`}
-        sx={{
-          '& .MuiTableCell-root': {
-            padding: { xs: '8px', sm: '16px' },
-            fontSize: { xs: '0.75rem', sm: '0.875rem' }
-          }
-        }}
-      />
+      {loading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+          <CircularProgress />
+        </Box>
+      ) : error ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+          <Typography color="error">{error}</Typography>
+        </Box>
+      ) : (
+        <AnimatedTable
+          columns={columns}
+          data={data}
+          title={`Past Subscribers Table (${data.length} subscribers)`}
+          sx={{
+            '& .MuiTableCell-root': {
+              padding: { xs: '8px', sm: '16px' },
+              fontSize: { xs: '0.75rem', sm: '0.875rem' }
+            }
+          }}
+        />
+      )}
     </Box>
   );
 };

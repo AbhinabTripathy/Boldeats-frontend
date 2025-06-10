@@ -30,6 +30,11 @@ import 'jspdf-autotable';
 import { useUsers } from '../contexts/UserContext';
 import { useVendors } from '../contexts/VendorContext';
 
+// Move helper functions and constants outside component
+const ORDER_STATUSES = ['Pending', 'Processing', 'Delivered', 'Cancelled'];
+const PAYMENT_STATUSES = ['Paid', 'Pending', 'Failed'];
+const ORDER_TYPES = ['Regular', 'Subscription'];
+
 // Function to format number to Indian currency format
 const formatIndianCurrency = (amount) => {
   const formatter = new Intl.NumberFormat('en-IN', {
@@ -103,6 +108,25 @@ const generateSampleData = () => {
   return sampleData;
 };
 
+// Function to generate random order data
+const generateOrderData = (user, vendor) => {
+  const orderDate = new Date();
+  orderDate.setDate(orderDate.getDate() - Math.floor(Math.random() * 30));
+  
+  return {
+    orderId: `ORD${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`,
+    userId: user.id,
+    vendorId: vendor.id,
+    customerName: user.name,
+    address: user.address,
+    status: ORDER_STATUSES[Math.floor(Math.random() * ORDER_STATUSES.length)],
+    paymentStatus: PAYMENT_STATUSES[Math.floor(Math.random() * PAYMENT_STATUSES.length)],
+    orderType: ORDER_TYPES[Math.floor(Math.random() * ORDER_TYPES.length)],
+    date: orderDate,
+    amount: Math.floor(Math.random() * 1000) + 500
+  };
+};
+
 const OrdersScreen = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -111,79 +135,17 @@ const OrdersScreen = () => {
   const { users, loading: usersLoading } = useUsers();
   const { vendors, loading: vendorsLoading } = useVendors();
   
-  // Generate orders based on user and vendor data
-  const generateOrdersFromUsersAndVendors = useCallback((userList, vendorList) => {
-    const paymentModes = ['Credit Card', 'UPI', 'Net Banking', 'Debit Card', 'Cash on Delivery'];
-    const prices = [1499, 2499, 3499, 4999, 6999, 8999, 999, 1999, 2999, 5999];
-    const statuses = ['Pending', 'Accepted', 'Rejected'];
-
-    // Ensure vendors list has proper ID and name properties
-    const validVendors = vendorList.filter(v => v && v.id);
+  // Generate orders from users and vendors
+  const generateOrdersFromUsersAndVendors = useCallback((users, vendors) => {
+    const ordersData = [];
+    const numOrders = Math.floor(Math.random() * 50) + 50; // 50-100 orders
     
-    // Fallback vendors if vendor list is empty or invalid
-    const fallbackVendors = [
-      { id: 'V001', name: 'Restaurant A' },
-      { id: 'V002', name: 'Restaurant B' },
-      { id: 'V003', name: 'Restaurant C' },
-      { id: 'V004', name: 'Restaurant D' },
-      { id: 'V005', name: 'Restaurant E' }
-    ];
+    for (let i = 0; i < numOrders; i++) {
+      const randomUser = users[Math.floor(Math.random() * users.length)];
+      const randomVendor = vendors[Math.floor(Math.random() * vendors.length)];
+      ordersData.push(generateOrderData(randomUser, randomVendor));
+    }
     
-    // Use validVendors if available, otherwise use fallbackVendors
-    const vendors = validVendors.length > 0 ? validVendors : fallbackVendors;
-    
-    console.log('Using vendors for orders:', vendors.map(v => `${v.id}: ${v.name || 'Unknown'}`));
-
-    let ordersData = [];
-    let id = 1;
-
-    // Generate 3-5 orders for each user
-    userList.forEach(user => {
-      // Get user-specific data
-      const orderCount = Math.floor(Math.random() * 3) + 3; // 3-5 orders per user
-      
-      for (let i = 0; i < orderCount; i++) {
-        // For demonstration, randomly assign some orders as already accepted/rejected
-        const randomStatus = i === 0 ? 'Pending' : statuses[Math.floor(Math.random() * statuses.length)];
-        
-        const orderId = `ORD${String(id).padStart(3, '0')}`;
-        
-        // Check if this order ID exists in the user's orders array (from user data)
-        const isKnownOrder = user.orders && user.orders.includes(orderId);
-        
-        // Use actual vendor data, with fallback
-        const vendorIndex = Math.floor(Math.random() * vendors.length);
-        const randomVendor = vendors[vendorIndex];
-        
-        // Ensure vendor has an ID and name
-        const vendorId = randomVendor.id || `V${String(vendorIndex+1).padStart(3, '0')}`;
-        const vendorName = randomVendor.name || `Vendor ${vendorIndex+1}`;
-        
-        console.log(`Creating order for ${user.name} with vendorId: ${vendorId}, vendorName: ${vendorName}`);
-        
-        ordersData.push({
-          id: id++,
-          orderId: orderId,
-          vendorId: vendorId,
-          vendorName: vendorName,
-          userId: user.id,
-          customerName: user.name,
-          address: user.address,
-          paymentMode: paymentModes[Math.floor(Math.random() * paymentModes.length)],
-          price: formatIndianCurrency(prices[Math.floor(Math.random() * prices.length)]),
-          status: isKnownOrder ? 'Pending' : randomStatus, // Keep known orders pending for demo
-          date: subDays(new Date(), Math.floor(Math.random() * 7)) // Random date in the last week
-        });
-      }
-    });
-
-    console.log('Sample of generated orders with vendorIds:', 
-      ordersData.slice(0, 3).map(o => ({ 
-        orderId: o.orderId, 
-        vendorId: o.vendorId, 
-        vendorName: o.vendorName 
-      })));
-      
     return ordersData;
   }, []);
   
@@ -218,31 +180,25 @@ const OrdersScreen = () => {
 
   // Update orders when user and vendor data is available
   useEffect(() => {
-    if (users.length > 0 && vendors.length > 0 && orders.length === 0) {
-      console.log('Generating orders with updated user/vendor data');
-      const newOrders = generateOrdersFromUsersAndVendors(users, vendors);
-      console.log('New orders generated, first 3 vendor IDs:', 
-        newOrders.slice(0, 3).map(o => o.vendorId));
-      setOrders(newOrders);
-    }
+    const updateOrders = () => {
+      if (users.length > 0 && vendors.length > 0 && orders.length === 0) {
+        const newOrders = generateOrdersFromUsersAndVendors(users, vendors);
+        setOrders(newOrders);
+      }
+    };
+    updateOrders();
   }, [users, vendors, orders.length, generateOrdersFromUsersAndVendors]);
 
-  // After initializing, verify orders have vendor IDs
-  useEffect(() => {
-    console.log('Current orders count:', orders.length);
-    if (orders.length > 0) {
-      console.log('First few orders vendor IDs:', 
-        orders.slice(0, 5).map(o => o.vendorId || 'missing'));
-    }
-  }, [orders]);
-
   // Save orders to localStorage whenever they change
-  React.useEffect(() => {
-    try {
-      localStorage.setItem('orders', JSON.stringify(orders));
-    } catch (error) {
-      console.error("Error saving orders to localStorage:", error);
-    }
+  useEffect(() => {
+    const saveOrders = () => {
+      try {
+        localStorage.setItem('orders', JSON.stringify(orders));
+      } catch (error) {
+        console.error("Error saving orders to localStorage:", error);
+      }
+    };
+    saveOrders();
   }, [orders]);
 
   const [dateRange, setDateRange] = useState({
