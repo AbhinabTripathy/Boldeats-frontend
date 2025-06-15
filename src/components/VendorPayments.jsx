@@ -57,8 +57,6 @@ const VendorPayments = () => {
     { id: 'userId', label: 'User ID' },
     { id: 'customerName', label: 'Customer Name' },
     { id: 'paymentAmount', label: 'Payment Amount', align: 'right' },
-    { id: 'paymentForAdmin', label: 'Payment for Admin', align: 'right' },
-    { id: 'paymentForVendor', label: 'Payment for Vendor', align: 'right' },
     { 
       id: 'paymentMethod', 
       label: 'Payment Method',
@@ -145,8 +143,6 @@ const VendorPayments = () => {
       'User ID': payment.userId,
       'Customer Name': payment.customerName,
       'Payment Amount': payment.paymentAmount,
-      'Payment for Admin': payment.paymentForAdmin,
-      'Payment for Vendor': payment.paymentForVendor,
       'Payment Method': payment.paymentMethod,
       'Payment Status': payment.paymentStatus,
       'Payment Screenshot': payment.paymentScreenshot ? 'Available' : 'Not Available',

@@ -1,9 +1,10 @@
-import React from 'react';
-import { Box, Typography, useTheme, useMediaQuery, Toolbar, IconButton, Button, Avatar } from '@mui/material';
+import React, { useState, useEffect } from 'react';
+import { Box, Typography, useTheme, useMediaQuery, Toolbar, IconButton, Button, Avatar, CircularProgress } from '@mui/material';
 import RestaurantIcon from '@mui/icons-material/Restaurant';
 import LogoutIcon from '@mui/icons-material/Logout';
 import { styled } from '@mui/material/styles';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 
 const StyledHeader = styled(Box)(({ theme }) => ({
   background: 'linear-gradient(90deg, #E8EAF6 0%, #F5F5F5 100%)',
@@ -47,9 +48,60 @@ const VendorHeader = () => {
   const theme = useTheme();
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'));
   const navigate = useNavigate();
+  const [vendorData, setVendorData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Get vendor data from localStorage
-  const vendorData = JSON.parse(localStorage.getItem('vendorUser') || '{}');
+  useEffect(() => {
+    fetchVendorDetails();
+  }, []);
+
+  const fetchVendorDetails = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const token = localStorage.getItem('vendorToken');
+      if (!token) {
+        setError('Please login to view vendor details');
+        return;
+      }
+
+      const vendorUser = JSON.parse(localStorage.getItem('vendorUser'));
+      if (!vendorUser || !vendorUser.id) {
+        setError('Vendor ID not found');
+        return;
+      }
+
+      const response = await axios.get(`https://api.boldeats.in/api/vendors/${vendorUser.id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      if (response.data.success === "true") {
+        setVendorData(response.data.data);
+      } else {
+        setError('Failed to fetch vendor details');
+      }
+    } catch (err) {
+      if (err.response) {
+        if (err.response.status === 401) {
+          setError('Session expired. Please login again.');
+          localStorage.removeItem('vendorToken');
+          localStorage.removeItem('vendorUser');
+          localStorage.removeItem('isVendorAuthenticated');
+          navigate('/login');
+        } else {
+          setError(err.response.data.message || 'Failed to fetch vendor details');
+        }
+      } else {
+        setError('Failed to connect to server');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('vendorToken');
@@ -57,6 +109,16 @@ const VendorHeader = () => {
     localStorage.removeItem('vendorUser');
     navigate('/login');
   };
+
+  if (loading) {
+    return (
+      <StyledHeader>
+        <Toolbar sx={{ height: '100%', display: 'flex', justifyContent: 'center' }}>
+          <CircularProgress size={24} />
+        </Toolbar>
+      </StyledHeader>
+    );
+  }
 
   return (
     <StyledHeader>
@@ -67,11 +129,11 @@ const VendorHeader = () => {
         justifyContent: 'space-between',
         alignItems: 'center'
       }}>
-        {/* Left side - Vendor Logo */}
+        {/* Left side - Vendor Logo and Name */}
         <LogoContainer>
-          {vendorData.logo ? (
+          {vendorData?.logo ? (
             <Avatar
-              src={vendorData.logo}
+              src={`https://api.boldeats.in/${vendorData.logo}`}
               alt={vendorData.name}
               sx={{ 
                 width: isSmall ? 40 : 48, 
@@ -89,23 +151,18 @@ const VendorHeader = () => {
               }} 
             />
           )}
+          <Typography
+            variant="h6"
+            sx={{
+              fontWeight: 600,
+              color: '#1976d2',
+              fontSize: isSmall ? '0.9rem' : '1.1rem',
+              display: { xs: 'none', sm: 'block' }
+            }}
+          >
+            {vendorData?.name || 'Vendor Panel'}
+          </Typography>
         </LogoContainer>
-
-        {/* Middle - Vendor Panel Text */}
-        <Typography
-          variant="h4"
-          component="div"
-          sx={{
-            fontWeight: 700,
-            color: '#1976d2',
-            fontSize: isSmall ? '1.1rem' : '1.25rem',
-            position: 'absolute',
-            left: '50%',
-            transform: 'translateX(-50%)'
-          }}
-        >
-          Vendor Panel
-        </Typography>
 
         {/* Right side - Logout Button */}
         <StyledLogoutButton

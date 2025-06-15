@@ -29,6 +29,7 @@ import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import { useUsers } from '../contexts/UserContext';
 import { useVendors } from '../contexts/VendorContext';
+import axios from 'axios';
 
 // Move helper functions and constants outside component
 const ORDER_STATUSES = ['Pending', 'Processing', 'Delivered', 'Cancelled'];
@@ -135,70 +136,81 @@ const OrdersScreen = () => {
   const { users, loading: usersLoading } = useUsers();
   const { vendors, loading: vendorsLoading } = useVendors();
   
-  // Generate orders from users and vendors
-  const generateOrdersFromUsersAndVendors = useCallback((users, vendors) => {
-    const ordersData = [];
-    const numOrders = Math.floor(Math.random() * 50) + 50; // 50-100 orders
-    
-    for (let i = 0; i < numOrders; i++) {
-      const randomUser = users[Math.floor(Math.random() * users.length)];
-      const randomVendor = vendors[Math.floor(Math.random() * vendors.length)];
-      ordersData.push(generateOrderData(randomUser, randomVendor));
-    }
-    
-    return ordersData;
-  }, []);
-  
-  // Initialize orders from localStorage, merging with new orders if needed
-  const [orders, setOrders] = useState(() => {
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [approvingOrder, setApprovingOrder] = useState(null);
+
+  // Fetch orders from API
+  const fetchOrders = useCallback(async () => {
     try {
-      const savedOrders = localStorage.getItem('orders');
-      if (savedOrders) {
-        const parsedOrders = JSON.parse(savedOrders);
-        // Clear localStorage to force regeneration of orders with proper vendor IDs
-        localStorage.removeItem('orders');
-        console.log('Cleared localStorage to regenerate orders with vendor IDs');
-        // We'll generate new orders below
+      setLoading(true);
+      setError(null);
+      const token = localStorage.getItem('adminToken');
+      if (!token) {
+        throw new Error('No authentication token found. Please login again.');
       }
-    } catch (error) {
-      console.error("Error loading orders from localStorage:", error);
+      const response = await axios.get('https://api.boldeats.in/api/admin/all-daily-orders', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      console.log('Raw API Response:', response.data);
+      
+      // Ensure we have an array of orders
+      let ordersData = [];
+      if (response.data && response.data.success && Array.isArray(response.data.data)) {
+        ordersData = response.data.data.map(order => {
+          const subscriber = order.DailyOrderSubscription?.Subscriber;
+          const address = subscriber?.Addresses?.[0];
+          const vendor = order.DailyOrderSubscription?.VendorSubscription;
+          
+          return {
+            orderId: order.id,
+            vendorId: order.vendorId,
+            
+            userId: subscriber?.id || '-',
+            customerName: subscriber?.name || '-',
+            
+            
+            address: address ? `${address.addressLine1}, ${address.addressLine2}, ${address.city}, ${address.state} - ${address.pincode}` : '-',
+            status: order.status || 'Pending',
+            date: order.date || order.createdAt,
+            
+            subscriptionId: order.subscriptionId,
+            startDate: order.DailyOrderSubscription?.startDate,
+            endDate: order.DailyOrderSubscription?.endDate,
+            paymentId: order.DailyOrderSubscription?.paymentId,
+            subscriptionStatus: order.DailyOrderSubscription?.status
+          };
+        });
+      }
+      
+      console.log('Processed Orders Data:', ordersData);
+      setOrders(ordersData);
+    } catch (err) {
+      console.error('Error fetching orders:', err);
+      setError('Failed to fetch orders. Please try again later.');
+      setOrders([]); // Set empty array on error
+    } finally {
+      setLoading(false);
     }
-    
-    // Generate new sample data with user and vendor info
-    console.log('Generating new orders with vendor IDs');
-    console.log('Users loaded:', users.length);
-    console.log('Vendors loaded:', vendors.length);
-    
-    const newOrders = (users.length > 0 && vendors.length > 0) ? 
-      generateOrdersFromUsersAndVendors(users, vendors) : 
-      generateSampleData();
-    
-    console.log('New orders generated with vendor IDs check:', 
-      newOrders.slice(0, 3).map(o => ({ id: o.id, vendorId: o.vendorId })));
-    return newOrders;
-  });
+  }, []);
 
-  // Update orders when user and vendor data is available
+  // Initial fetch and setup periodic refresh
   useEffect(() => {
-    const updateOrders = () => {
-      if (users.length > 0 && vendors.length > 0 && orders.length === 0) {
-        const newOrders = generateOrdersFromUsersAndVendors(users, vendors);
-        setOrders(newOrders);
-      }
-    };
-    updateOrders();
-  }, [users, vendors, orders.length, generateOrdersFromUsersAndVendors]);
+    console.log('Initial fetch of orders');
+    fetchOrders();
+    // Refresh orders every 5 minutes
+    const intervalId = setInterval(fetchOrders, 5 * 60 * 1000);
+    return () => clearInterval(intervalId);
+  }, [fetchOrders]);
 
-  // Save orders to localStorage whenever they change
+  // Debug log when orders state changes
   useEffect(() => {
-    const saveOrders = () => {
-      try {
-        localStorage.setItem('orders', JSON.stringify(orders));
-      } catch (error) {
-        console.error("Error saving orders to localStorage:", error);
-      }
-    };
-    saveOrders();
+    console.log('Orders state updated:', orders);
   }, [orders]);
 
   const [dateRange, setDateRange] = useState({
@@ -296,17 +308,49 @@ const OrdersScreen = () => {
     XLSX.writeFile(workbook, 'orders.xlsx');
   };
 
-  const handleAccept = (orderId) => {
-    setOrders(prevOrders => {
-      const updatedOrders = prevOrders.map(order => {
-        // Only change status if it's currently Pending
-        if (order.orderId === orderId && order.status === 'Pending') {
-          return { ...order, status: 'Accepted' };
+  const handleAccept = async (orderId) => {
+    try {
+      setApprovingOrder(orderId);
+      const token = localStorage.getItem('adminToken');
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
+      // Find the order to get its subscriptionId
+      const order = orders.find(o => o.orderId === orderId);
+      if (!order || !order.subscriptionId) {
+        throw new Error('Subscription ID not found for this order');
+      }
+
+      const response = await axios.patch(
+        `https://api.boldeats.in/api/admin/subscriptions/${order.orderId}/approve`,
+        {},
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
         }
-        return order;
-      });
-      return updatedOrders;
-    });
+      );
+
+      if (response.data.success) {
+        // Update the order status in the local state
+        setOrders(prevOrders => 
+          prevOrders.map(order => 
+            order.orderId === orderId 
+              ? { ...order, status: 'Accepted' }
+              : order
+          )
+        );
+      } else {
+        throw new Error(response.data.message || 'Failed to approve order');
+      }
+    } catch (err) {
+      console.error('Error approving order:', err);
+      setError(err.message || 'Failed to approve order');
+    } finally {
+      setApprovingOrder(null);
+    }
   };
 
   const handleReject = (orderId) => {
@@ -326,45 +370,38 @@ const OrdersScreen = () => {
     { 
       id: 'orderId', 
       label: 'Order ID',
-      width: 120,
-      minWidth: 100
+      width: 100,
+      minWidth: 80
     },
     { 
       id: 'vendorId', 
       label: 'Vendor ID',
-      width: 120,
-      minWidth: 100,
-      render: (row) => {
-        // Safely handle the case when vendorId is undefined
-        const vendorId = row.vendorId || '-';
-        console.log(`Rendering vendor ID for order ${row.orderId}: ${vendorId}`);
-        return vendorId;
-      }
+      width: 100,
+      minWidth: 80,
+      render: (row) => row.vendorId || '-'
     },
     { 
       id: 'userId', 
       label: 'User ID',
       width: 100,
       minWidth: 80,
-      hide: isMobile && isTablet, // Hide on very small screens
-      render: (row) => {
-        // Safely handle the case when userId is undefined
-        const userId = row.userId || '-';
-        return userId;
-      }
+      hide: isMobile && isTablet,
+      render: (row) => row.userId || '-'
     },
     { 
       id: 'customerName', 
       label: 'Customer Name',
       width: 150,
-      minWidth: 120
+      minWidth: 120,
+      render: (row) => row.customerName || '-'
     },
     { 
       id: 'address', 
       label: 'Address',
-      width: 200,
-      minWidth: 150,
-      hide: isMobile // Hide address on mobile
+      width: 250,
+      minWidth: 200,
+      hide: isMobile,
+      render: (row) => row.address || '-'
     },
     { 
       id: 'status', 
@@ -397,6 +434,7 @@ const OrdersScreen = () => {
                 variant="contained"
                 size="small"
                 onClick={() => handleAccept(row.orderId)}
+                disabled={approvingOrder === row.orderId}
                 sx={{
                   bgcolor: '#4caf50',
                   '&:hover': {
@@ -406,12 +444,17 @@ const OrdersScreen = () => {
                   height: '30px'
                 }}
               >
-                Accept
+                {approvingOrder === row.orderId ? (
+                  <CircularProgress size={20} color="inherit" />
+                ) : (
+                  'Accept'
+                )}
               </Button>
               <Button
                 variant="contained"
                 size="small"
                 onClick={() => handleReject(row.orderId)}
+                disabled={approvingOrder === row.orderId}
                 sx={{
                   bgcolor: '#f44336',
                   '&:hover': {
@@ -510,6 +553,9 @@ const OrdersScreen = () => {
       </Box>
     );
   }
+
+  // Debug log for filtered data
+  console.log('Filtered Data:', filteredData);
 
   return (
     <Box sx={{ p: 3, mt: 8 }}>

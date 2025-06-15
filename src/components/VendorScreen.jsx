@@ -71,8 +71,28 @@ const VendorScreen = () => {
     subscriptionPriceMonthly: '',
     yearsInBusiness: '',
     menuType: '',
-    mealTypes: []
+    mealTypes: [],
+    logo: '',
+    fssaiCertificate: '',
+    menuPhotos: [],
+    menuSections: []
   });
+
+  // Temporary state for menu items input as string
+  const [menuItemsInput, setMenuItemsInput] = useState({});
+
+  // Initialize menuItemsInput when opening the edit form
+  useEffect(() => {
+    if (openEditForm && editFormData.menuSections) {
+      const inputState = {};
+      editFormData.menuSections.forEach((section, sectionIdx) => {
+        section.menuItems?.forEach((item, itemIdx) => {
+          inputState[`${sectionIdx}-${itemIdx}`] = (item.items || []).join(', ');
+        });
+      });
+      setMenuItemsInput(inputState);
+    }
+  }, [openEditForm, editFormData.menuSections]);
 
   const fetchVendors = async () => {
     try {
@@ -238,7 +258,11 @@ const VendorScreen = () => {
         subscriptionPriceMonthly: data.subscriptionPriceMonthly || '',
         yearsInBusiness: data.yearsInBusiness || '',
         menuType: data.menuType || '',
-        mealTypes: data.mealTypes || []
+        mealTypes: data.mealTypes || [],
+        logo: data.logo || '',
+        fssaiCertificate: data.fssaiCertificate || '',
+        menuPhotos: data.menuPhotos || [],
+        menuSections: data.menuSections || []
       });
       setOpenEditForm(true);
       handleMenuClose();
@@ -269,7 +293,24 @@ const VendorScreen = () => {
       subscriptionPriceMonthly: '',
       yearsInBusiness: '',
       menuType: '',
-      mealTypes: []
+      mealTypes: [],
+      logo: '',
+      fssaiCertificate: '',
+      menuPhotos: [],
+      menuSections: []
+    });
+  };
+
+  const validateMenuSections = (sections) => {
+    if (!Array.isArray(sections)) return false;
+    
+    return sections.every(section => {
+      if (!section.sectionName || !Array.isArray(section.menuItems)) return false;
+      
+      return section.menuItems.every(item => {
+        if (!item.dayOfWeek || !Array.isArray(item.items)) return false;
+        return item.items.every(itemName => typeof itemName === 'string');
+      });
     });
   };
 
@@ -282,17 +323,79 @@ const VendorScreen = () => {
         throw new Error('No authentication token found');
       }
 
+      // Create FormData object
+      const formData = new FormData();
+
+      // Add basic information
+      formData.append('name', editFormData.name);
+      formData.append('email', editFormData.email);
+      formData.append('phoneNumber', editFormData.phoneNumber);
+      formData.append('address', editFormData.address);
+      formData.append('gstin', editFormData.gstin);
+      formData.append('fssaiNumber', editFormData.fssaiNumber);
+      formData.append('accountHolderName', editFormData.accountHolderName);
+      formData.append('accountNumber', editFormData.accountNumber);
+      formData.append('ifscCode', editFormData.ifscCode);
+      formData.append('bankName', editFormData.bankName);
+      formData.append('branch', editFormData.branch);
+      formData.append('openingTime', editFormData.openingTime);
+      formData.append('closingTime', editFormData.closingTime);
+      formData.append('subscriptionPrice15Days', editFormData.subscriptionPrice15Days);
+      formData.append('subscriptionPriceMonthly', editFormData.subscriptionPriceMonthly);
+      formData.append('yearsInBusiness', editFormData.yearsInBusiness);
+      formData.append('menuType', editFormData.menuType || '');
+      formData.append('mealTypes', JSON.stringify(editFormData.mealTypes || []));
+
+      // Handle menuSections
+      if (editFormData.menuSections && Array.isArray(editFormData.menuSections)) {
+        const formattedMenuSections = editFormData.menuSections.map(section => ({
+          sectionName: section.sectionName || '',
+          menuItems: section.menuItems ? section.menuItems.map(item => ({
+            dayOfWeek: item.dayOfWeek || '',
+            items: Array.isArray(item.items) ? item.items.filter(Boolean) : []
+          })) : []
+        }));
+        formData.append('menuSections', JSON.stringify(formattedMenuSections));
+      } else {
+        formData.append('menuSections', JSON.stringify([]));
+      }
+
+      // Handle files if they exist
+      if (editFormData.logo) {
+        formData.append('logo', editFormData.logo);
+      }
+      if (editFormData.fssaiCertificate) {
+        formData.append('fssaiCertificate', editFormData.fssaiCertificate);
+      }
+      if (editFormData.menuPhotos && editFormData.menuPhotos.length > 0) {
+        editFormData.menuPhotos.forEach((photo, index) => {
+          formData.append('menuPhotos', photo);
+        });
+      }
+
+      // Log the form data for debugging
+      console.log('Form Data being sent:');
+      for (let pair of formData.entries()) {
+        console.log(pair[0] + ': ' + pair[1]);
+      }
+
       const response = await fetch(`https://api.boldeats.in/api/vendors/${editingVendor.id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
         },
-        body: JSON.stringify(editFormData),
+        body: formData
       });
 
+      const responseData = await response.json();
+      console.log('API Response:', responseData);
+
       if (!response.ok) {
-        throw new Error('Failed to update vendor');
+        throw new Error(responseData.message || 'Failed to update vendor');
+      }
+
+      if (!responseData.success) {
+        throw new Error(responseData.message || 'Failed to update vendor');
       }
 
       // Refresh the vendors list
@@ -301,6 +404,11 @@ const VendorScreen = () => {
     } catch (err) {
       setError(err.message);
       console.error('Error updating vendor:', err);
+      console.error('Full error details:', {
+        message: err.message,
+        stack: err.stack,
+        response: err.response
+      });
     }
   };
 
@@ -310,6 +418,57 @@ const VendorScreen = () => {
       ...prev,
       [name]: value
     }));
+  };
+
+  // Add a new function to handle menu section changes
+  const handleMenuSectionChange = (sectionIndex, field, value) => {
+    setEditFormData(prev => {
+      const newMenuSections = [...(prev.menuSections || [])];
+      if (!newMenuSections[sectionIndex]) {
+        newMenuSections[sectionIndex] = { sectionName: '', menuItems: [] };
+      }
+      newMenuSections[sectionIndex][field] = value;
+      return {
+        ...prev,
+        menuSections: newMenuSections
+      };
+    });
+  };
+
+  // Add a new function to handle menu item changes
+  const handleMenuItemChange = (sectionIndex, itemIndex, field, value) => {
+    setEditFormData(prev => {
+      const newMenuSections = [...(prev.menuSections || [])];
+      if (!newMenuSections[sectionIndex]) {
+        newMenuSections[sectionIndex] = { sectionName: '', menuItems: [] };
+      }
+      if (!newMenuSections[sectionIndex].menuItems[itemIndex]) {
+        newMenuSections[sectionIndex].menuItems[itemIndex] = { dayOfWeek: '', items: [] };
+      }
+      newMenuSections[sectionIndex].menuItems[itemIndex][field] = value;
+      return {
+        ...prev,
+        menuSections: newMenuSections
+      };
+    });
+  };
+
+  // Add a new function to handle menu item array changes
+  const handleMenuItemArrayChange = (sectionIndex, itemIndex, value) => {
+    setEditFormData(prev => {
+      const newMenuSections = [...(prev.menuSections || [])];
+      if (!newMenuSections[sectionIndex]) {
+        newMenuSections[sectionIndex] = { sectionName: '', menuItems: [] };
+      }
+      if (!newMenuSections[sectionIndex].menuItems[itemIndex]) {
+        newMenuSections[sectionIndex].menuItems[itemIndex] = { dayOfWeek: '', items: [] };
+      }
+      newMenuSections[sectionIndex].menuItems[itemIndex].items = value;
+      return {
+        ...prev,
+        menuSections: newMenuSections
+      };
+    });
   };
   
   // Delete confirmation
@@ -522,6 +681,10 @@ const VendorScreen = () => {
         <DialogContent>
           <Box component="form" onSubmit={handleEditFormSubmit} sx={{ mt: 2 }}>
             <Grid container spacing={2}>
+              {/* Basic Information */}
+              <Grid item xs={12}>
+                <Typography variant="h6" sx={{ mb: 2 }}>Basic Information</Typography>
+              </Grid>
               <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
@@ -563,6 +726,11 @@ const VendorScreen = () => {
                   required
                 />
               </Grid>
+
+              {/* Legal Information */}
+              <Grid item xs={12}>
+                <Typography variant="h6" sx={{ mb: 2, mt: 2 }}>Legal Information</Typography>
+              </Grid>
               <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
@@ -582,6 +750,160 @@ const VendorScreen = () => {
                   onChange={handleEditFormChange}
                   required
                 />
+              </Grid>
+
+              {/* Images */}
+              <Grid item xs={12}>
+                <Typography variant="h6" sx={{ mb: 2, mt: 2 }}>Images</Typography>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="subtitle2">Logo</Typography>
+                {editFormData.logo && (
+                  <Box
+                    component="img"
+                    src={`https://api.boldeats.in/${editFormData.logo}`}
+                    alt="Vendor Logo"
+                    sx={{
+                      maxWidth: '200px',
+                      maxHeight: '200px',
+                      objectFit: 'contain',
+                      border: '1px solid #ddd',
+                      borderRadius: '4px',
+                      p: 1,
+                      mt: 1
+                    }}
+                  />
+                )}
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="subtitle2">FSSAI Certificate</Typography>
+                {editFormData.fssaiCertificate && (
+                  <Box
+                    component="img"
+                    src={`https://api.boldeats.in/${editFormData.fssaiCertificate}`}
+                    alt="FSSAI Certificate"
+                    sx={{
+                      maxWidth: '200px',
+                      maxHeight: '200px',
+                      objectFit: 'contain',
+                      border: '1px solid #ddd',
+                      borderRadius: '4px',
+                      p: 1,
+                      mt: 1
+                    }}
+                  />
+                )}
+              </Grid>
+
+              {/* Menu Photos */}
+              <Grid item xs={12}>
+                <Typography variant="subtitle2" sx={{ mt: 2 }}>Menu Photos</Typography>
+                <Grid container spacing={2} sx={{ mt: 1 }}>
+                  {editFormData.menuPhotos?.map((photo, index) => (
+                    <Grid item xs={12} sm={4} key={index}>
+                      <Box
+                        component="img"
+                        src={`https://api.boldeats.in/${photo.photoUrl}`}
+                        alt={`Menu Photo ${index + 1}`}
+                        sx={{
+                          width: '100%',
+                          height: '200px',
+                          objectFit: 'cover',
+                          border: '1px solid #ddd',
+                          borderRadius: '4px',
+                          p: 1
+                        }}
+                      />
+                    </Grid>
+                  ))}
+                </Grid>
+              </Grid>
+
+              {/* Menu Sections */}
+              <Grid item xs={12}>
+                <Typography variant="h6" sx={{ mb: 2, mt: 2 }}>Menu Sections</Typography>
+                {editFormData.menuSections?.map((section, sectionIndex) => (
+                  <Paper key={sectionIndex} sx={{ p: 2, mb: 2 }}>
+                    <TextField
+                      fullWidth
+                      label="Section Name"
+                      value={section.sectionName}
+                      onChange={(e) => handleMenuSectionChange(sectionIndex, 'sectionName', e.target.value)}
+                      sx={{ mb: 2 }}
+                    />
+                    {section.menuItems?.map((item, itemIndex) => (
+                      <Grid container spacing={2} key={itemIndex} sx={{ mb: 2 }}>
+                        <Grid item xs={12} sm={4}>
+                          <TextField
+                            fullWidth
+                            label="Day of Week"
+                            value={item.dayOfWeek}
+                            onChange={(e) => handleMenuItemChange(sectionIndex, itemIndex, 'dayOfWeek', e.target.value)}
+                          />
+                        </Grid>
+                        <Grid item xs={12} sm={8}>
+                          <TextField
+                            fullWidth
+                            label="Items (comma-separated)"
+                            value={menuItemsInput[`${sectionIndex}-${itemIndex}`] || ''}
+                            onChange={(e) => {
+                              setMenuItemsInput(prev => ({
+                                ...prev,
+                                [`${sectionIndex}-${itemIndex}`]: e.target.value
+                              }));
+                            }}
+                            onBlur={(e) => {
+                              handleMenuItemArrayChange(
+                                sectionIndex,
+                                itemIndex,
+                                e.target.value.split(',').map(item => item.trim()).filter(Boolean)
+                              );
+                            }}
+                            helperText="Enter items separated by commas"
+                          />
+                        </Grid>
+                      </Grid>
+                    ))}
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={() => {
+                        const newMenuItems = [...(section.menuItems || [])];
+                        newMenuItems.push({ dayOfWeek: '', items: [] });
+                        handleMenuSectionChange(sectionIndex, 'menuItems', newMenuItems);
+                        // Also update menuItemsInput for the new item
+                        setMenuItemsInput(prev => ({
+                          ...prev,
+                          [`${sectionIndex}-${newMenuItems.length - 1}`]: ''
+                        }));
+                      }}
+                      sx={{ mt: 1 }}
+                    >
+                      Add Day
+                    </Button>
+                  </Paper>
+                ))}
+                <Button
+                  variant="outlined"
+                  onClick={() => {
+                    const newMenuSections = [...(editFormData.menuSections || [])];
+                    newMenuSections.push({
+                      sectionName: '',
+                      menuItems: []
+                    });
+                    setEditFormData(prev => ({
+                      ...prev,
+                      menuSections: newMenuSections
+                    }));
+                  }}
+                >
+                  Add Menu Section
+                </Button>
+              </Grid>
+
+              {/* Bank Details */}
+              <Grid item xs={12}>
+                <Typography variant="h6" sx={{ mb: 2, mt: 2 }}>Bank Details</Typography>
               </Grid>
               <Grid item xs={12} sm={6}>
                 <TextField
@@ -633,6 +955,11 @@ const VendorScreen = () => {
                   required
                 />
               </Grid>
+
+              {/* Business Hours and Pricing */}
+              <Grid item xs={12}>
+                <Typography variant="h6" sx={{ mb: 2, mt: 2 }}>Business Hours and Pricing</Typography>
+              </Grid>
               <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
@@ -658,7 +985,6 @@ const VendorScreen = () => {
                   fullWidth
                   label="15 Days Subscription Price"
                   name="subscriptionPrice15Days"
-                  type="number"
                   value={editFormData.subscriptionPrice15Days}
                   onChange={handleEditFormChange}
                   required
@@ -669,7 +995,6 @@ const VendorScreen = () => {
                   fullWidth
                   label="Monthly Subscription Price"
                   name="subscriptionPriceMonthly"
-                  type="number"
                   value={editFormData.subscriptionPriceMonthly}
                   onChange={handleEditFormChange}
                   required
@@ -686,51 +1011,18 @@ const VendorScreen = () => {
                   required
                 />
               </Grid>
-              <Grid item xs={12} sm={6}>
-                <FormControl fullWidth>
-                  <InputLabel>Menu Type</InputLabel>
-                  <Select
-                    name="menuType"
-                    value={editFormData.menuType}
-                    onChange={handleEditFormChange}
-                    label="Menu Type"
-                    required
-                  >
-                    <MuiMenuItem value="veg">Veg</MuiMenuItem>
-                    <MuiMenuItem value="non-veg">Non-Veg</MuiMenuItem>
-                    <MuiMenuItem value="both">Both</MuiMenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <FormControl fullWidth>
-                  <InputLabel>Meal Types</InputLabel>
-                  <Select
-                    multiple
-                    name="mealTypes"
-                    value={editFormData.mealTypes}
-                    onChange={handleEditFormChange}
-                    label="Meal Types"
-                    required
-                  >
-                    <MuiMenuItem value="breakfast">Breakfast</MuiMenuItem>
-                    <MuiMenuItem value="lunch">Lunch</MuiMenuItem>
-                    <MuiMenuItem value="dinner">Dinner</MuiMenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
             </Grid>
+            <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
+              <Button onClick={handleEditFormClose}>Cancel</Button>
+              <Button type="submit" variant="contained" color="primary">
+                Save Changes
+              </Button>
+            </Box>
           </Box>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleEditFormClose}>Cancel</Button>
-          <Button onClick={handleEditFormSubmit} variant="contained" color="primary">
-            Save Changes
-          </Button>
-        </DialogActions>
       </Dialog>
     </Box>
   );
 };
 
-export default VendorScreen; 
+export default VendorScreen;

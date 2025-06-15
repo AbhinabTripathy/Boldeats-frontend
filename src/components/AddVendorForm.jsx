@@ -496,6 +496,7 @@ const AddVendorForm = ({ open, handleClose, onVendorAdded }) => {
   const [submitError, setSubmitError] = useState('');
 
   const handleSubmit = async () => {
+    console.log("auu");
     if (validateForm()) {
       setSubmitLoading(true);
       setSubmitError('');
