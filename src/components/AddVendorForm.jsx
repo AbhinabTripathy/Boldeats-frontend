@@ -30,6 +30,8 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { CloudUpload, Close, Add, Delete, Visibility, VisibilityOff } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
+import { useNavigate } from 'react-router-dom';
+import { handleTokenExpiration, getCurrentToken, handleApiResponse } from '../utils/auth';
 
 // Styled component for file upload
 const VisuallyHiddenInput = styled('input')({
@@ -50,6 +52,8 @@ const UploadButton = styled(Button)(({ theme }) => ({
 }));
 
 const AddVendorForm = ({ open, handleClose, onVendorAdded }) => {
+  const navigate = useNavigate();
+  
   // Add new state for form steps
   const [activeStep, setActiveStep] = useState(0);
   const [initialFormData, setInitialFormData] = useState({
@@ -496,15 +500,15 @@ const AddVendorForm = ({ open, handleClose, onVendorAdded }) => {
   const [submitError, setSubmitError] = useState('');
 
   const handleSubmit = async () => {
-    console.log("auu");
     if (validateForm()) {
       setSubmitLoading(true);
       setSubmitError('');
       
       try {
-        const token = localStorage.getItem('adminToken');
-        if (!token) {
-          throw new Error('Authentication token not found');
+        const tokenData = getCurrentToken();
+        if (!tokenData) {
+          handleTokenExpiration();
+          return;
         }
 
         // Create FormData object
@@ -654,21 +658,14 @@ const AddVendorForm = ({ open, handleClose, onVendorAdded }) => {
             const response = await fetch('https://api.boldeats.in/api/vendors/addVendor', {
               method: 'POST',
               headers: {
-                'Authorization': `Bearer ${token}`
+                'Authorization': `Bearer ${tokenData.token}`
               },
               body: formDataToSend
             });
 
-            if (response.status === 413) {
-              throw new Error('The uploaded files are too large. Please reduce the size of your images.');
-            }
+            const data = await handleApiResponse(response);
+            if (!data) return; // Token expired, handleApiResponse already handled the redirect
 
-            if (!response.ok) {
-              const data = await response.json();
-              throw new Error(data.message || 'Failed to add vendor');
-            }
-
-            const data = await response.json();
             console.log('API Response:', data);
             success = true;
             setSubmitSuccess(true);

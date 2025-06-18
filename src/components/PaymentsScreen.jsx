@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, IconButton, Stack, Tooltip, Select, MenuItem, FormControl, InputLabel, CircularProgress, Button } from '@mui/material';
+import { Box, Typography, IconButton, Stack, Tooltip, Select, MenuItem, FormControl, InputLabel, CircularProgress, Button, Snackbar, Alert } from '@mui/material';
 import { GridOn, Refresh, FileUpload, Visibility, ImageNotSupported } from '@mui/icons-material';
 import AnimatedTable from './AnimatedTable';
 import * as XLSX from 'xlsx';
@@ -11,6 +11,11 @@ const PaymentsScreen = () => {
   const [loading, setLoading] = useState(true);
   const [uploadLoading, setUploadLoading] = useState({});
   const [error, setError] = useState(null);
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'success'
+  });
 
   // Fetch payment data from API
   const fetchPayments = async () => {
@@ -36,12 +41,10 @@ const PaymentsScreen = () => {
       }
 
       const responseData = await response.json();
-      console.log('API Response:', responseData); // Debug log
+      console.log('API Response:', responseData);
 
-      // Check if responseData has a data property (common API pattern)
       const data = responseData.data || responseData;
       
-      // Ensure data is an array
       if (!Array.isArray(data)) {
         console.error('Unexpected API response format:', data);
         throw new Error('Invalid data format received from API');
@@ -58,7 +61,9 @@ const PaymentsScreen = () => {
         vendorName: payment.vendorName,
         paymentAmount: `₹${payment.amount || 0}`,
         paymentMethod: payment.paymentMethod || 'UPI',
-        paymentStatus: payment.status || 'Pending',
+        paymentStatus: payment.status === 'Completed' ? 'Approved' : 
+                      payment.status === 'Failed' ? 'Rejected' : 
+                      payment.status || 'Pending',
         paymentScreenshot: payment.screenshot || null,
         adminPaymentProof: payment.adminProof || null,
         createdAt: payment.createdAt || new Date().toISOString()
@@ -68,7 +73,7 @@ const PaymentsScreen = () => {
     } catch (err) {
       setError(err.message);
       console.error('Error fetching payments:', err);
-      setPayments([]); // Reset payments to empty array on error
+      setPayments([]);
     } finally {
       setLoading(false);
     }
@@ -153,9 +158,9 @@ const PaymentsScreen = () => {
               }
             }}
           >
-            <MenuItem value="Completed" sx={{ color: 'success.main' }}>Completed</MenuItem>
+            <MenuItem value="Approved" sx={{ color: 'success.main' }}>Approved</MenuItem>
             <MenuItem value="Pending" sx={{ color: 'warning.main' }}>Pending</MenuItem>
-            <MenuItem value="Failed" sx={{ color: 'error.main' }}>Failed</MenuItem>
+            <MenuItem value="Rejected" sx={{ color: 'error.main' }}>Rejected</MenuItem>
           </Select>
         </FormControl>
       )
@@ -247,11 +252,11 @@ const PaymentsScreen = () => {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'Completed':
+      case 'Approved':
         return 'success.main';
       case 'Pending':
         return 'warning.main';
-      case 'Failed':
+      case 'Rejected':
         return 'error.main';
       default:
         return 'text.primary';
@@ -280,8 +285,10 @@ const PaymentsScreen = () => {
         body: JSON.stringify({ status: newStatus })
       });
 
+      const responseData = await response.json();
+
       if (!response.ok) {
-        throw new Error('Failed to update payment status');
+        throw new Error(responseData.message || 'Failed to update payment status');
       }
 
       // Update local state only after successful API call
@@ -293,14 +300,32 @@ const PaymentsScreen = () => {
         )
       );
 
-      // Show success message or handle success case
-      console.log('Payment status updated successfully');
+      // Show success message based on the status
+      let successMessage = '';
+      if (newStatus === 'Approved') {
+        successMessage = 'Payment approved and subscription created successfully';
+      } else if (newStatus === 'Rejected') {
+        successMessage = 'Payment rejected successfully';
+      }
+
+      setSnackbar({
+        open: true,
+        message: successMessage,
+        severity: 'success'
+      });
+
+      // Refresh the payments list after a short delay
+      setTimeout(() => {
+        fetchPayments();
+      }, 2000);
+
     } catch (err) {
       console.error('Error updating payment status:', err);
-      // Optionally show error message to user
-      setError(err.message);
-      // Refresh the payments list to ensure consistency
-      fetchPayments();
+      setSnackbar({
+        open: true,
+        message: err.message || 'Failed to update payment status',
+        severity: 'error'
+      });
     }
   };
 
@@ -346,6 +371,11 @@ const PaymentsScreen = () => {
 
   const refreshData = () => {
     fetchPayments();
+  };
+
+  // Add handleCloseSnackbar function
+  const handleCloseSnackbar = () => {
+    setSnackbar(prev => ({ ...prev, open: false }));
   };
 
   return (
@@ -405,6 +435,21 @@ const PaymentsScreen = () => {
         title={`Payments Table (${filteredData.length} payments)`}
         loading={loading}
       />
+      
+      <Snackbar 
+        open={snackbar.open} 
+        autoHideDuration={6000} 
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <Alert 
+          onClose={handleCloseSnackbar} 
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

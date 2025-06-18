@@ -20,7 +20,7 @@ import { Visibility, VisibilityOff } from '@mui/icons-material';
 
 const Login = () => {
   const navigate = useNavigate();
-  const [loginType, setLoginType] = useState('admin');
+  const [loginType, setLoginType] = useState('vendor');
   const [formData, setFormData] = useState({
     email: '',
     phoneNumber: '',
@@ -161,11 +161,11 @@ const Login = () => {
             onChange={handleLoginTypeChange}
             sx={{ mb: 3 }}
           >
-            <ToggleButton value="admin">
-              Admin
-            </ToggleButton>
             <ToggleButton value="vendor">
               Vendor
+            </ToggleButton>
+            <ToggleButton value="admin">
+              Admin
             </ToggleButton>
           </ToggleButtonGroup>
 
