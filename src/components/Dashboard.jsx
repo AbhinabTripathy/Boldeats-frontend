@@ -4,6 +4,7 @@ import { styled } from '@mui/material/styles';
 import { motion } from 'framer-motion';
 import { CurrencyRupee, ShoppingCart, People, Store } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
+import { handleApiResponse } from '../utils/auth';
 
 const StyledPaper = styled(Paper)(({ theme }) => ({
   padding: theme.spacing(3),
@@ -74,11 +75,9 @@ const Dashboard = () => {
           }
         });
 
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        const data = await handleApiResponse(response);
+        if (!data) return; // Token expired, handleApiResponse already handled the redirect
 
-        const data = await response.json();
         console.log('Dashboard API Response:', data);
         
         if (data.success) {

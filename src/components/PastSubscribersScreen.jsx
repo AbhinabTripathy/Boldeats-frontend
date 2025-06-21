@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Box, Typography, Stack } from '@mui/material';
 import AnimatedTable from './AnimatedTable';
 import { format } from 'date-fns';
+import { handleApiResponse } from '../utils/auth';
 
 const PastSubscribersScreen = () => {
   const columns = [
@@ -28,8 +29,9 @@ const PastSubscribersScreen = () => {
           'Content-Type': 'application/json',
         },
       });
-      if (!response.ok) throw new Error('Failed to fetch data');
-      const result = await response.json();
+      const result = await handleApiResponse(response);
+      if (!result) return; // Token expired, handleApiResponse already handled the redirect
+      
       // Assuming result is an array of users
       const formatted = result.map(item => ({
         ...item,

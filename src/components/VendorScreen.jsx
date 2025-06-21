@@ -28,11 +28,20 @@ import {
   FormControl,
   InputLabel,
   Select,
-  MenuItem as MuiMenuItem
+  MenuItem as MuiMenuItem,
+  Tooltip,
+  Stack,
+  Checkbox,
+  FormControlLabel,
+  useTheme,
+  useMediaQuery,
+  Alert,
+  Snackbar
 } from '@mui/material';
-import { Add, Edit, Delete, Visibility, MoreVert, ToggleOn, ToggleOff, Refresh } from '@mui/icons-material';
+import { Add, Edit, Delete, Visibility, MoreVert, ToggleOn, ToggleOff, Refresh, CheckCircle, Cancel } from '@mui/icons-material';
 import AddVendorForm from './AddVendorForm';
 import { format } from 'date-fns';
+import { handleApiResponse } from '../utils/auth';
 
 const VendorScreen = () => {
   const [vendors, setVendors] = useState([]);
@@ -112,11 +121,8 @@ const VendorScreen = () => {
         },
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch vendors');
-      }
-
-      const responseData = await response.json();
+      const responseData = await handleApiResponse(response);
+      if (!responseData) return; // Token expired, handleApiResponse already handled the redirect
       
       if (responseData.success && responseData.data) {
         setVendors(responseData.data);
@@ -197,9 +203,8 @@ const VendorScreen = () => {
         },
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to update vendor status');
-      }
+      const responseData = await handleApiResponse(response);
+      if (!responseData) return; // Token expired, handleApiResponse already handled the redirect
 
       // Refresh the vendors list
       await fetchVendors();
@@ -228,11 +233,8 @@ const VendorScreen = () => {
         },
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch vendor details');
-      }
-
-      const responseData = await response.json();
+      const responseData = await handleApiResponse(response);
+      if (!responseData) return; // Token expired, handleApiResponse already handled the redirect
       
       if (!responseData.success || !responseData.data) {
         throw new Error('Invalid response format');
@@ -262,7 +264,16 @@ const VendorScreen = () => {
         logo: data.logo || '',
         fssaiCertificate: data.fssaiCertificate || '',
         menuPhotos: data.menuPhotos || [],
-        menuSections: data.menuSections || []
+        // Handle the new menu structure - convert menu array to menuSections format for the form
+        menuSections: data.menu ? data.menu.map(section => ({
+          sectionName: section.sectionName || '',
+          menuType: section.menuType || '',
+          mealType: section.mealType || '',
+          menuItems: section.menuItems ? section.menuItems.map(item => ({
+            dayOfWeek: item.dayOfWeek || '',
+            items: Array.isArray(item.items) ? item.items : []
+          })) : []
+        })) : []
       });
       setOpenEditForm(true);
       handleMenuClose();
@@ -346,18 +357,20 @@ const VendorScreen = () => {
       formData.append('menuType', editFormData.menuType || '');
       formData.append('mealTypes', JSON.stringify(editFormData.mealTypes || []));
 
-      // Handle menuSections
+      // Handle menuSections - convert to menu format for the API
       if (editFormData.menuSections && Array.isArray(editFormData.menuSections)) {
-        const formattedMenuSections = editFormData.menuSections.map(section => ({
+        const formattedMenu = editFormData.menuSections.map(section => ({
           sectionName: section.sectionName || '',
+          menuType: section.menuType || '',
+          mealType: section.mealType || '',
           menuItems: section.menuItems ? section.menuItems.map(item => ({
             dayOfWeek: item.dayOfWeek || '',
             items: Array.isArray(item.items) ? item.items.filter(Boolean) : []
           })) : []
         }));
-        formData.append('menuSections', JSON.stringify(formattedMenuSections));
+        formData.append('menu', JSON.stringify(formattedMenu));
       } else {
-        formData.append('menuSections', JSON.stringify([]));
+        formData.append('menu', JSON.stringify([]));
       }
 
       // Handle files if they exist
@@ -387,12 +400,10 @@ const VendorScreen = () => {
         body: formData
       });
 
-      const responseData = await response.json();
+      const responseData = await handleApiResponse(response);
+      if (!responseData) return; // Token expired, handleApiResponse already handled the redirect
+      
       console.log('API Response:', responseData);
-
-      if (!response.ok) {
-        throw new Error(responseData.message || 'Failed to update vendor');
-      }
 
       if (!responseData.success) {
         throw new Error(responseData.message || 'Failed to update vendor');
@@ -501,11 +512,8 @@ const VendorScreen = () => {
         },
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to delete vendor');
-      }
-
-      const responseData = await response.json();
+      const responseData = await handleApiResponse(response);
+      if (!responseData) return; // Token expired, handleApiResponse already handled the redirect
       
       if (!responseData.success) {
         throw new Error(responseData.message || 'Failed to delete vendor');

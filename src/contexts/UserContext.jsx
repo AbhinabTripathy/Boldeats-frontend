@@ -1,4 +1,5 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
+import { handleApiResponse } from '../utils/auth';
 
 // // Sample user data - in a real app, this would come from an API
 // const sampleUsers = [
@@ -91,8 +92,9 @@ export const UserProvider = ({ children }) => {
           'Content-Type': 'application/json',
         },
       });
-      if (!response.ok) throw new Error('Failed to fetch users');
-      const data = await response.json();
+      const data = await handleApiResponse(response);
+      if (!data) return; // Token expired, handleApiResponse already handled the redirect
+      
       // Ensure data is always an array
       let usersArray = [];
       if (Array.isArray(data)) {
@@ -139,8 +141,9 @@ export const UserProvider = ({ children }) => {
           'Content-Type': 'application/json',
         },
       });
-      if (!response.ok) throw new Error('Failed to fetch active users');
-      const data = await response.json();
+      const data = await handleApiResponse(response);
+      if (!data) return []; // Token expired, handleApiResponse already handled the redirect
+      
       let usersArray = [];
       if (Array.isArray(data)) {
         usersArray = data;
@@ -180,8 +183,9 @@ export const UserProvider = ({ children }) => {
             'Content-Type': 'application/json',
           },
         });
-        if (!response.ok) throw new Error('Failed to fetch users');
-        const data = await response.json();
+        const data = await handleApiResponse(response);
+        if (!data) return; // Token expired, handleApiResponse already handled the redirect
+        
         if (isMounted) {
           // Ensure data is always an array
           let usersArray = [];

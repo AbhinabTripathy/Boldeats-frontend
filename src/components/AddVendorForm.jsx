@@ -516,7 +516,7 @@ const AddVendorForm = ({ open, handleClose, onVendorAdded }) => {
         
         // Add basic fields
         formDataToSend.append('name', formData.name);
-        formDataToSend.append('phoneNumber', formData.phone);
+        formDataToSend.append('phoneNumber', initialFormData.phone);
         formDataToSend.append('email', formData.email);
         formDataToSend.append('address', formData.address);
         formDataToSend.append('gstin', formData.gstin || '');
@@ -526,8 +526,8 @@ const AddVendorForm = ({ open, handleClose, onVendorAdded }) => {
         formDataToSend.append('ifscCode', formData.ifscCode);
         formDataToSend.append('bankName', formData.bankName);
         formDataToSend.append('branch', formData.branch);
-        formDataToSend.append('password', formData.password);
-        formDataToSend.append('confirmPassword', formData.confirmPassword);
+        formDataToSend.append('password', initialFormData.password);
+        formDataToSend.append('confirmPassword', initialFormData.confirmPassword);
 
         // Format time values
         const formatTime = (date) => {
@@ -638,7 +638,7 @@ const AddVendorForm = ({ open, handleClose, onVendorAdded }) => {
 
         formDataToSend.append('menuType', JSON.stringify(menuTypes));
         formDataToSend.append('mealTypes', JSON.stringify(mealTypes));
-        formDataToSend.append('menuSections', JSON.stringify(formattedMenuSections));
+        formDataToSend.append('menu', JSON.stringify(formattedMenuSections));
 
         // Add and compress menu photos
         if (formData.menuPhotos.length > 0) {
@@ -672,6 +672,7 @@ const AddVendorForm = ({ open, handleClose, onVendorAdded }) => {
             
             // Call the onVendorAdded callback if provided
             if (onVendorAdded) {
+              // Pass the vendor data with the new structure
               onVendorAdded(data.data);
             }
             

@@ -4,6 +4,7 @@ import { GridOn, Refresh, FileUpload, Visibility, ImageNotSupported } from '@mui
 import AnimatedTable from './AnimatedTable';
 import * as XLSX from 'xlsx';
 import { format } from 'date-fns';
+import { handleApiResponse } from '../utils/auth';
 
 const PaymentsScreen = () => {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('all');
@@ -36,11 +37,9 @@ const PaymentsScreen = () => {
         },
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch payments');
-      }
+      const responseData = await handleApiResponse(response);
+      if (!responseData) return; // Token expired, handleApiResponse already handled the redirect
 
-      const responseData = await response.json();
       console.log('API Response:', responseData);
 
       const data = responseData.data || responseData;
@@ -285,11 +284,8 @@ const PaymentsScreen = () => {
         body: JSON.stringify({ status: newStatus })
       });
 
-      const responseData = await response.json();
-
-      if (!response.ok) {
-        throw new Error(responseData.message || 'Failed to update payment status');
-      }
+      const responseData = await handleApiResponse(response);
+      if (!responseData) return; // Token expired, handleApiResponse already handled the redirect
 
       // Update local state only after successful API call
       setPayments(prevPayments => 
