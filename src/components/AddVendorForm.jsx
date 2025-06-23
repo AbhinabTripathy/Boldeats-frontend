@@ -610,35 +610,36 @@ const AddVendorForm = ({ open, handleClose, onVendorAdded }) => {
         const menuTypes = [...new Set(formData.menuSections.map(section => section.menuType))];
         const mealTypes = [...new Set(formData.menuSections.map(section => section.mealType))];
 
-        // Format menu sections
+        // Format menu sections to match the API structure
         const formattedMenuSections = formData.menuSections.map((section, index) => {
-          const formattedMenuItems = section.menuItems.map(item => {
+          // Convert the day-wise menu items to the correct format
+          const formattedMenuItems = [];
+          
+          section.menuItems.forEach((item, itemIndex) => {
             const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-            const menuItems = [];
             
             days.forEach(day => {
               if (item[day] && item[day].trim()) {
-                menuItems.push({
+                formattedMenuItems.push({
                   dayOfWeek: day.charAt(0).toUpperCase() + day.slice(1),
-                  items: [item[day].trim()]
+                  items: [item[day].trim()],
+                  isActive: true
                 });
               }
             });
-
-            return menuItems;
-          }).flat();
+          });
 
           return {
+            sectionName: `Menu Section ${index + 1}`,
             menuType: section.menuType.charAt(0).toUpperCase() + section.menuType.slice(1),
             mealType: section.mealType.charAt(0).toUpperCase() + section.mealType.slice(1),
-            sectionName: `Menu Section ${index + 1}`,
             menuItems: formattedMenuItems
           };
         });
 
         formDataToSend.append('menuType', JSON.stringify(menuTypes));
         formDataToSend.append('mealTypes', JSON.stringify(mealTypes));
-        formDataToSend.append('menu', JSON.stringify(formattedMenuSections));
+        formDataToSend.append('menuSections', JSON.stringify(formattedMenuSections));
 
         // Add and compress menu photos
         if (formData.menuPhotos.length > 0) {
@@ -1175,8 +1176,7 @@ const AddVendorForm = ({ open, handleClose, onVendorAdded }) => {
                           error={!!errors.menuType}
                         >
                           <MenuItem value="veg">Veg</MenuItem>
-                          <MenuItem value="non-veg">Non-Veg</MenuItem>
-                          <MenuItem value="both">Both</MenuItem>
+                          <MenuItem value="both">Regular</MenuItem>
                         </Select>
                         {errors.menuType && (
                           <FormHelperText error>{errors.menuType}</FormHelperText>

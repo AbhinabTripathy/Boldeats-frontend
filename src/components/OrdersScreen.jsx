@@ -150,7 +150,7 @@ const OrdersScreen = () => {
       if (!token) {
         throw new Error('No authentication token found. Please login again.');
       }
-      const response = await axios.get('https://api.boldeats.in/api/admin/all-daily-orders', {
+      const response = await axios.get('https://api.boldeats.in/api/admin/subscriptions', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -162,28 +162,20 @@ const OrdersScreen = () => {
       // Ensure we have an array of orders
       let ordersData = [];
       if (response.data && response.data.success && Array.isArray(response.data.data)) {
-        ordersData = response.data.data.map(order => {
-          const subscriber = order.DailyOrderSubscription?.Subscriber;
-          const address = subscriber?.Addresses?.[0];
-          const vendor = order.DailyOrderSubscription?.VendorSubscription;
-          
+        ordersData = response.data.data.map(subscription => {
           return {
-            orderId: order.id,
-            vendorId: order.vendorId,
-            
-            userId: subscriber?.id || '-',
-            customerName: subscriber?.name || '-',
-            
-            
-            address: address ? `${address.addressLine1}, ${address.addressLine2}, ${address.city}, ${address.state} - ${address.pincode}` : '-',
-            status: order.status || 'Pending',
-            date: order.date || order.createdAt,
-            
-            subscriptionId: order.subscriptionId,
-            startDate: order.DailyOrderSubscription?.startDate,
-            endDate: order.DailyOrderSubscription?.endDate,
-            paymentId: order.DailyOrderSubscription?.paymentId,
-            subscriptionStatus: order.DailyOrderSubscription?.status
+            orderId: subscription.id,
+            vendorId: subscription.vendorId,
+            userId: subscription.userId,
+            customerName: subscription.userName,
+            address: subscription.userAddress,
+            status: subscription.isAdminApproved ? 'Accepted' : 'Pending',
+            date: subscription.createdAt,
+            subscriptionId: subscription.id,
+            startDate: subscription.startDate,
+            endDate: subscription.endDate,
+            paymentId: subscription.paymentId,
+            subscriptionStatus: subscription.status
           };
         });
       }
@@ -322,8 +314,14 @@ const OrdersScreen = () => {
         throw new Error('Subscription ID not found for this order');
       }
 
+      console.log('Attempting to approve subscription:', {
+        orderId,
+        subscriptionId: order.subscriptionId,
+        currentStatus: order.status
+      });
+
       const response = await axios.patch(
-        `https://api.boldeats.in/api/admin/subscriptions/${order.orderId}/approve`,
+        `https://api.boldeats.in/api/admin/subscriptions/${order.subscriptionId}/approve`,
         {},
         {
           headers: {
@@ -332,6 +330,8 @@ const OrdersScreen = () => {
           }
         }
       );
+
+      console.log('API Response:', response.data);
 
       if (response.data.success) {
         // Update the order status in the local state
@@ -342,28 +342,78 @@ const OrdersScreen = () => {
               : order
           )
         );
+        console.log('Subscription approved successfully');
       } else {
-        throw new Error(response.data.message || 'Failed to approve order');
+        throw new Error(response.data.message || 'Failed to approve subscription');
       }
     } catch (err) {
-      console.error('Error approving order:', err);
-      setError(err.message || 'Failed to approve order');
+      console.error('Error approving subscription:', err);
+      console.error('Error details:', {
+        message: err.message,
+        response: err.response?.data,
+        status: err.response?.status
+      });
     } finally {
       setApprovingOrder(null);
     }
   };
 
-  const handleReject = (orderId) => {
-    setOrders(prevOrders => {
-      const updatedOrders = prevOrders.map(order => {
-        // Only change status if it's currently Pending
-        if (order.orderId === orderId && order.status === 'Pending') {
-          return { ...order, status: 'Rejected' };
-        }
-        return order;
+  const handleReject = async (orderId) => {
+    try {
+      setApprovingOrder(orderId);
+      const token = localStorage.getItem('adminToken');
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
+      // Find the order to get its subscriptionId
+      const order = orders.find(o => o.orderId === orderId);
+      if (!order || !order.subscriptionId) {
+        throw new Error('Subscription ID not found for this order');
+      }
+
+      console.log('Attempting to reject subscription:', {
+        orderId,
+        subscriptionId: order.subscriptionId,
+        currentStatus: order.status
       });
-      return updatedOrders;
-    });
+
+      const response = await axios.patch(
+        `https://api.boldeats.in/api/admin/subscriptions/${order.subscriptionId}/approve`,
+        { status: 'Rejected' },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      console.log('API Response:', response.data);
+
+      if (response.data.success) {
+        // Update the order status in the local state
+        setOrders(prevOrders => 
+          prevOrders.map(order => 
+            order.orderId === orderId 
+              ? { ...order, status: 'Rejected' }
+              : order
+          )
+        );
+        console.log('Subscription rejected successfully');
+      } else {
+        throw new Error(response.data.message || 'Failed to reject subscription');
+      }
+    } catch (err) {
+      console.error('Error rejecting subscription:', err);
+      console.error('Error details:', {
+        message: err.message,
+        response: err.response?.data,
+        status: err.response?.status
+      });
+    } finally {
+      setApprovingOrder(null);
+    }
   };
 
   const columns = [
