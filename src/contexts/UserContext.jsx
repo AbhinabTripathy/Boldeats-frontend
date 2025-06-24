@@ -1,5 +1,5 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
-import { handleApiResponse } from '../utils/auth';
+import { handleApiResponse, getCurrentToken } from '../utils/auth';
 
 // // Sample user data - in a real app, this would come from an API
 // const sampleUsers = [
@@ -79,13 +79,26 @@ export const UserProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Function to check if user is authenticated
+  const checkAuth = () => {
+    const token = getCurrentToken();
+    return token && token.type === 'admin';
+  };
+
   // Function to fetch users
   const fetchUsers = async () => {
     try {
       setLoading(true);
       setError(null);
+      
+      // Check authentication first
+      if (!checkAuth()) {
+        setError('Authentication required. Please login again.');
+        setLoading(false);
+        return;
+      }
+
       const token = localStorage.getItem('adminToken');
-      if (!token) throw new Error('No authentication token found. Please login again.');
       const response = await fetch('https://api.boldeats.in/api/admin/users', {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -133,8 +146,12 @@ export const UserProvider = ({ children }) => {
   // Function to fetch active users
   const fetchActiveUsers = async () => {
     try {
+      // Check authentication first
+      if (!checkAuth()) {
+        return [];
+      }
+
       const token = localStorage.getItem('adminToken');
-      if (!token) throw new Error('No authentication token found. Please login again.');
       const response = await fetch('https://api.boldeats.in/api/admin/users/active', {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -175,8 +192,17 @@ export const UserProvider = ({ children }) => {
       try {
         setLoading(true);
         setError(null);
+        
+        // Check authentication first
+        if (!checkAuth()) {
+          if (isMounted) {
+            setError('Authentication required. Please login again.');
+            setLoading(false);
+          }
+          return;
+        }
+
         const token = localStorage.getItem('adminToken');
-        if (!token) throw new Error('No authentication token found. Please login again.');
         const response = await fetch('https://api.boldeats.in/api/admin/users', {
           headers: {
             'Authorization': `Bearer ${token}`,

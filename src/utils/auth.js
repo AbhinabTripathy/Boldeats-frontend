@@ -75,4 +75,48 @@ export const handleApiResponse = async (response) => {
   }
   
   return response.json();
+};
+
+// Function to check if admin is authenticated
+export const isAdminAuthenticated = () => {
+  const token = getCurrentToken();
+  if (!token || token.type !== 'admin') {
+    return false;
+  }
+  return true;
+};
+
+// Function to check if vendor is authenticated
+export const isVendorAuthenticated = () => {
+  const token = getCurrentToken();
+  if (!token || token.type !== 'vendor') {
+    return false;
+  }
+  return true;
+};
+
+// Debug function to check authentication status
+export const debugAuthStatus = () => {
+  const adminToken = localStorage.getItem('adminToken');
+  const vendorToken = localStorage.getItem('vendorToken');
+  const isAuthenticated = localStorage.getItem('isAuthenticated');
+  const isVendorAuthenticated = localStorage.getItem('isVendorAuthenticated');
+  
+  console.log('=== Authentication Debug Info ===');
+  console.log('Admin Token:', adminToken ? 'Present' : 'Not found');
+  console.log('Vendor Token:', vendorToken ? 'Present' : 'Not found');
+  console.log('isAuthenticated flag:', isAuthenticated);
+  console.log('isVendorAuthenticated flag:', isVendorAuthenticated);
+  
+  if (adminToken) {
+    console.log('Admin Token Expired:', isTokenExpired(adminToken));
+  }
+  
+  if (vendorToken) {
+    console.log('Vendor Token Expired:', isTokenExpired(vendorToken));
+  }
+  
+  console.log('isAdminAuthenticated():', isAdminAuthenticated());
+  console.log('isVendorAuthenticated():', isVendorAuthenticated());
+  console.log('================================');
 }; 

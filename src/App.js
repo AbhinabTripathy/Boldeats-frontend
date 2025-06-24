@@ -19,6 +19,7 @@ import VendorPayments from './components/VendorPayments';
 import VendorOrders from './components/VendorOrders';
 import VendorActiveUsers from './components/VendorActiveUsers';
 import VendorPastSubscribers from './components/VendorPastSubscribers';
+import { isAdminAuthenticated, isVendorAuthenticated } from './utils/auth';
 
 const theme = createTheme({
   palette: {
@@ -30,15 +31,6 @@ const theme = createTheme({
     },
   },
 });
-
-// Check if user is authenticated
-const isAdminAuthenticated = () => {
-  return localStorage.getItem('isAuthenticated') === 'true';
-};
-
-const isVendorAuthenticated = () => {
-  return localStorage.getItem('isVendorAuthenticated') === 'true';
-};
 
 // Protected route components
 const AdminProtectedRoute = ({ children }) => {
