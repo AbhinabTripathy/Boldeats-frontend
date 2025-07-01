@@ -166,6 +166,20 @@ const VendorPayments = () => {
     setTimeout(() => setLoading(false), 500);
   };
 
+  const handleConfirmUpload = (event) => {
+    const formData = new FormData();
+    const compressedFile = event.target.files[0];
+    const payment = payments.find(p => p.id === event.target.id);
+    if (compressedFile && payment) {
+      formData.append('receipt', compressedFile);
+      formData.append('vendorId', payment.vendorId);
+      formData.append('amount', payment.paymentAmount.replace('₹', ''));
+      formData.append('userId', payment.userId);
+      formData.append('paymentId', payment.paymentId);
+      // Handle the form submission
+    }
+  };
+
   return (
     <Box sx={{ p: 3, mt: 8 }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>

@@ -15,6 +15,14 @@ const VendorProfile = () => {
   const [error, setError] = useState(null);
   const [vendorData, setVendorData] = useState(null);
 
+  // Function to transform meal type display
+  const getDisplayMealType = (mealType) => {
+    if (mealType === 'both') {
+      return 'Regular';
+    }
+    return mealType;
+  };
+
   useEffect(() => {
     fetchVendorDetails();
   }, []);
@@ -285,20 +293,20 @@ const VendorProfile = () => {
         <Typography variant="h6" sx={{ mb: 2 }}>
           Menu Sections
         </Typography>
-        {vendorData.menuSections.map((section) => (
+        {vendorData.menu && vendorData.menu.map((section) => (
           <Box key={section.id} sx={{ mb: 4 }}>
             <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 'bold' }}>
-              {section.sectionName} ({section.menuType} - {section.mealType})
+              {section.sectionName} ({section.menuType} - {getDisplayMealType(section.mealType)})
             </Typography>
             <Grid container spacing={2}>
-              {section.menuItems.map((item) => (
+              {section.menuItems && section.menuItems.map((item) => (
                 <Grid item xs={12} sm={6} md={4} key={item.id}>
                   <Paper sx={{ p: 2 }}>
                     <Typography variant="subtitle2" sx={{ mb: 1 }}>
                       {item.dayOfWeek}
                     </Typography>
                     <Typography variant="body2">
-                      {item.items.join(', ')}
+                      {item.items && item.items.join(', ')}
                     </Typography>
                   </Paper>
                 </Grid>

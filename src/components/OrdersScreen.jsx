@@ -321,7 +321,7 @@ const OrdersScreen = () => {
       });
 
       const response = await axios.patch(
-        `https://api.boldeats.in/api/admin/subscriptions/${order.subscriptionId}/approve`,
+        `https://api.boldeats.in/api/admin/subscriptions/${order.subscriptionId}`,
         {},
         {
           headers: {
