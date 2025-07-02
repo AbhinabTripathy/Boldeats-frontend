@@ -1,55 +1,110 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, IconButton, Stack, Tooltip, Select, MenuItem, FormControl, InputLabel, CircularProgress } from '@mui/material';
+import { Box, Typography, IconButton, Stack, Tooltip, Select, MenuItem, FormControl, InputLabel, CircularProgress, Alert } from '@mui/material';
 import { GridOn, Refresh, Visibility, ImageNotSupported } from '@mui/icons-material';
 import AnimatedTable from './AnimatedTable';
 import * as XLSX from 'xlsx';
 import { format } from 'date-fns';
-import { useUsers } from '../contexts/UserContext';
-import { useVendors } from '../contexts/VendorContext';
+import { getCurrentToken, handleApiResponse } from '../utils/auth';
 
 const VendorPayments = () => {
-  const { users, loading: usersLoading } = useUsers();
-  const { vendors, loading: vendorsLoading } = useVendors();
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('all');
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Generate payment data based on user and vendor data
-  useEffect(() => {
-    if (users.length > 0 && vendors.length > 0) {
+  // Fetch vendor payments from API
+  const fetchVendorPayments = async () => {
+    try {
       setLoading(true);
-      const generatedPayments = [];
-      let id = 1;
-      users.forEach(user => {
-        if (user.payments && user.payments.length > 0) {
-          user.payments.forEach(paymentId => {
-            const paymentMethods = ['Credit Card', 'UPI', 'Net Banking', 'Debit Card'];
-            const amounts = [1499, 2499, 3499, 4999, 6999];
-            const paymentAmount = amounts[Math.floor(Math.random() * amounts.length)];
-            // Random split for admin and vendor
-            const adminShare = Math.floor(paymentAmount * (Math.random() * 0.3 + 0.1)); // 10%-40% for admin
-            const vendorShare = paymentAmount - adminShare;
-            generatedPayments.push({
-              id: id,
-              slNo: id,
-              paymentId: paymentId,
-              userId: user.id,
-              customerName: user.name,
-              paymentAmount: `₹${paymentAmount}`,
-              paymentForAdmin: `₹${adminShare}`,
-              paymentForVendor: `₹${vendorShare}`,
-              paymentMethod: paymentMethods[Math.floor(Math.random() * paymentMethods.length)],
-              paymentStatus: Math.random() > 0.2 ? 'Completed' : (Math.random() > 0.5 ? 'Pending' : 'Failed'),
-              paymentScreenshot: user.paymentScreenshot || (Math.random() > 0.5 ? `https://source.unsplash.com/random/300x200?payment&sig=${id}` : null), // Simulate payment screenshots
-            });
-            id++;
-          });
-        }
+      setError(null);
+      
+      const tokenData = getCurrentToken();
+      if (!tokenData || tokenData.type !== 'vendor') {
+        setError('Vendor authentication required');
+        setLoading(false);
+        return;
+      }
+
+      const response = await fetch('https://api.boldeats.in/api/payment/vendor-payments', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${tokenData.token}`,
+          'Content-Type': 'application/json',
+        },
       });
-      setPayments(generatedPayments);
+
+      const data = await handleApiResponse(response);
+      if (data) {
+        // Handle different response formats
+        let paymentsArray = [];
+        
+        // Check if data is an array
+        if (Array.isArray(data)) {
+          paymentsArray = data;
+        }
+        // Check if data has a payments property (common API pattern)
+        else if (data.payments && Array.isArray(data.payments)) {
+          paymentsArray = data.payments;
+        }
+        // Check if data has a data property (common API pattern)
+        else if (data.data && Array.isArray(data.data)) {
+          paymentsArray = data.data;
+        }
+        // Check if data has a results property (common API pattern)
+        else if (data.results && Array.isArray(data.results)) {
+          paymentsArray = data.results;
+        }
+        // If data is an object but not an array, try to extract payments
+        else if (typeof data === 'object' && data !== null) {
+          // Try to find any array property that might contain payments
+          const arrayKeys = Object.keys(data).filter(key => Array.isArray(data[key]));
+          if (arrayKeys.length > 0) {
+            paymentsArray = data[arrayKeys[0]];
+          }
+        }
+        
+        console.log('API Response:', data);
+        console.log('Payments Array:', paymentsArray);
+        
+        // Transform API data to match our table structure
+        const transformedPayments = paymentsArray.map((payment, index) => ({
+          id: payment.id || index + 1,
+          slNo: index + 1,
+          paymentId: payment.paymentId || payment.id,
+          userId: payment.userId || payment.user?.id,
+          customerName: payment.customerName || payment.user?.name || 'Unknown Customer',
+          paymentAmount: `₹${payment.amount || payment.paymentAmount || 0}`,
+          paymentForAdmin: `₹${payment.adminShare || payment.paymentForAdmin || 0}`,
+          paymentForVendor: `₹${payment.vendorShare || payment.paymentForVendor || 0}`,
+          paymentMethod: payment.paymentMethod || 'Unknown',
+          paymentStatus: payment.status || payment.paymentStatus || 'Pending',
+          paymentScreenshot: payment.screenshot || payment.paymentScreenshot || null,
+          paymentDate: payment.createdAt || payment.paymentDate,
+          orderId: payment.orderId,
+          description: payment.description,
+        }));
+        
+        setPayments(transformedPayments);
+        
+        // If no payments found, show a message
+        if (transformedPayments.length === 0) {
+          setError('No payments found for this vendor.');
+        }
+      } else {
+        setError('No data received from the server.');
+      }
+    } catch (err) {
+      console.error('Error fetching vendor payments:', err);
+      setError(err.message || 'Failed to fetch payments. Please try again.');
+    } finally {
       setLoading(false);
     }
-  }, [users, vendors]);
+  };
+
+  // Load payments on component mount
+  useEffect(() => {
+    fetchVendorPayments();
+  }, []);
 
   const columns = [
     { id: 'slNo', label: 'Serial Number' },
@@ -65,7 +120,18 @@ const VendorPayments = () => {
     { 
       id: 'paymentStatus', 
       label: 'Payment Status',
-      render: (row) => row.paymentStatus
+      render: (row) => (
+        <Typography
+          variant="body2"
+          sx={{
+            color: getStatusColor(row.paymentStatus),
+            fontWeight: 'medium',
+            textTransform: 'capitalize'
+          }}
+        >
+          {row.paymentStatus}
+        </Typography>
+      )
     },
     {
       id: 'paymentScreenshot',
@@ -93,12 +159,14 @@ const VendorPayments = () => {
   ];
 
   const getStatusColor = (status) => {
-    switch (status) {
-      case 'Completed':
+    switch (status?.toLowerCase()) {
+      case 'completed':
+      case 'success':
         return 'success.main';
-      case 'Pending':
+      case 'pending':
         return 'warning.main';
-      case 'Failed':
+      case 'failed':
+      case 'cancelled':
         return 'error.main';
       default:
         return 'text.primary';
@@ -146,13 +214,14 @@ const VendorPayments = () => {
       'Payment Method': payment.paymentMethod,
       'Payment Status': payment.paymentStatus,
       'Payment Screenshot': payment.paymentScreenshot ? 'Available' : 'Not Available',
+      'Payment Date': payment.paymentDate ? format(new Date(payment.paymentDate), 'dd/MM/yyyy HH:mm') : 'N/A',
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(excelData);
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Payments');
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Vendor Payments');
     
-    const fileName = `payments_${format(new Date(), 'dd-MM-yyyy')}.xlsx`;
+    const fileName = `vendor_payments_${format(new Date(), 'dd-MM-yyyy')}.xlsx`;
     XLSX.writeFile(workbook, fileName);
   };
 
@@ -161,9 +230,7 @@ const VendorPayments = () => {
   };
 
   const refreshData = () => {
-    setLoading(true);
-    // Simulate a refresh by waiting a bit then resetting the loading state
-    setTimeout(() => setLoading(false), 500);
+    fetchVendorPayments();
   };
 
   const handleConfirmUpload = (event) => {
@@ -184,7 +251,7 @@ const VendorPayments = () => {
     <Box sx={{ p: 3, mt: 8 }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
         <Typography variant="h4">
-          Payments
+          Vendor Payments
         </Typography>
         <Stack direction="row" spacing={2} alignItems="center">
           <FormControl sx={{ minWidth: 200 }}>
@@ -201,11 +268,12 @@ const VendorPayments = () => {
               <MenuItem value="UPI">UPI</MenuItem>
               <MenuItem value="Net Banking">Net Banking</MenuItem>
               <MenuItem value="Debit Card">Debit Card</MenuItem>
+              <MenuItem value="Cash">Cash</MenuItem>
             </Select>
           </FormControl>
           <Tooltip title="Refresh Data">
-            <IconButton onClick={refreshData} disabled={loading || usersLoading || vendorsLoading}>
-              {loading || usersLoading || vendorsLoading ? (
+            <IconButton onClick={refreshData} disabled={loading}>
+              {loading ? (
                 <CircularProgress size={24} />
               ) : (
                 <Refresh />
@@ -223,18 +291,25 @@ const VendorPayments = () => {
                 width: 40,
                 height: 40
               }}
-              disabled={loading || usersLoading || vendorsLoading}
+              disabled={loading || payments.length === 0}
             >
               <GridOn color="success" />
             </IconButton>
           </Tooltip>
         </Stack>
       </Stack>
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
+
       <AnimatedTable
         columns={columns}
         data={filteredData}
-        title={`Payments Table (${filteredData.length} payments)`}
-        loading={loading || usersLoading || vendorsLoading}
+        title={`Vendor Payments (${filteredData.length} payments)`}
+        loading={loading}
       />
     </Box>
   );
