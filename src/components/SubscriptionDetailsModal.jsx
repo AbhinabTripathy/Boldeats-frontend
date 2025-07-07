@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -19,23 +19,75 @@ import { FileDownload as FileDownloadIcon } from '@mui/icons-material';
 import { format, addDays, isSameDay } from 'date-fns';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import { getCurrentToken, handleApiResponse } from '../utils/auth';
 
 const SubscriptionDetailsModal = ({ open, onClose, user }) => {
+  const [orderHistory, setOrderHistory] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (!open || !user) return;
+    const fetchOrderHistory = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const { token } = getCurrentToken() || {};
+        
+        // Extract numeric subscription ID if possible
+        let subscriptionId;
+        
+        // First check if user has a subscriptionId property
+        if (user.subscriptionId) {
+          subscriptionId = user.subscriptionId;
+        }
+        // Check if user has a numeric id that could be used
+        else if (user.id && !isNaN(parseInt(user.id))) {
+          subscriptionId = parseInt(user.id);
+        }
+        // Check if userId is numeric
+        else if (user.userId && !isNaN(parseInt(user.userId))) {
+          subscriptionId = parseInt(user.userId);
+        }
+        // If we have a subscription field that might contain a numeric ID
+        else if (user.subscription && user.subscription.id) {
+          subscriptionId = user.subscription.id;
+        }
+        // Last resort: try to extract numeric part from userId if it's a string
+        else if (user.userId && typeof user.userId === 'string') {
+          const numericPart = user.userId.match(/\d+/);
+          if (numericPart) {
+            subscriptionId = numericPart[0];
+          } else {
+            throw new Error('Could not find a valid subscription ID');
+          }
+        } else {
+          throw new Error('Could not find a valid subscription ID');
+        }
+        
+        const res = await fetch(`https://api.boldeats.in/api/daily-orders/subscription/${subscriptionId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        const data = await handleApiResponse(res);
+        setOrderHistory(Array.isArray(data) ? data : (data.orders || []));
+      } catch (err) {
+        setError(err.message || 'Failed to fetch order history');
+        setOrderHistory([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchOrderHistory();
+  }, [open, user]);
+
   if (!user) return null;
 
   // Calculate subscription end date
   const startDate = new Date(user.startDate);
   const endDate = addDays(startDate, user.duration);
-
-  // Mock data for order history - replace with actual data from your backend
-  const orderHistory = [
-    { date: '2024-03-01', status: 'delivered' },
-    { date: '2024-03-02', status: 'delivered' },
-    { date: '2024-03-03', status: 'missed' },
-    { date: '2024-03-04', status: 'delivered' },
-    { date: '2024-03-05', status: 'delivered' },
-    // Add more dates as needed
-  ];
 
   // Calculate adjusted end date based on missed days
   const missedDays = orderHistory.filter(order => order.status === 'missed').length;
@@ -198,28 +250,36 @@ const SubscriptionDetailsModal = ({ open, onClose, user }) => {
 
         <Box>
           <Typography variant="h6" gutterBottom>Order History</Typography>
-          <List>
-            {orderHistory.map((order, index) => (
-              <ListItem
-                key={index}
-                sx={{
-                  bgcolor: 'background.default',
-                  mb: 1,
-                  borderRadius: 1
-                }}
-              >
-                <ListItemText
-                  primary={format(new Date(order.date), 'dd/MM/yyyy')}
-                  secondary={getStatusLabel(order.status)}
-                />
-                <Chip
-                  label={getStatusLabel(order.status)}
-                  color={getStatusColor(order.status)}
-                  size="small"
-                />
-              </ListItem>
-            ))}
-          </List>
+          {loading ? (
+            <Typography variant="body2" color="text.secondary">Loading order history...</Typography>
+          ) : error ? (
+            <Typography variant="body2" color="error">{error}</Typography>
+          ) : orderHistory.length === 0 ? (
+            <Typography variant="body2" color="text.secondary">No order history found.</Typography>
+          ) : (
+            <List>
+              {orderHistory.map((order, index) => (
+                <ListItem
+                  key={index}
+                  sx={{
+                    bgcolor: 'background.default',
+                    mb: 1,
+                    borderRadius: 1
+                  }}
+                >
+                  <ListItemText
+                    primary={format(new Date(order.date), 'dd/MM/yyyy')}
+                    secondary={getStatusLabel(order.status)}
+                  />
+                  <Chip
+                    label={getStatusLabel(order.status)}
+                    color={getStatusColor(order.status)}
+                    size="small"
+                  />
+                </ListItem>
+              ))}
+            </List>
+          )}
         </Box>
       </DialogContent>
       <DialogActions>
