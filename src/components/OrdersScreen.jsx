@@ -225,7 +225,7 @@ const OrdersScreen = () => {
       'User ID': order.userId || '-',
       'Customer Name': order.customerName,
       'Address': order.address,
-      'Status': order.status,
+      'Order Status': order.status,
       'Date': format(order.date, 'dd/MM/yyyy')
     }));
 
@@ -243,7 +243,7 @@ const OrdersScreen = () => {
     doc.addFont('https://fonts.gstatic.com/s/roboto/v29/KFOmCnqEu92Fr1Mu4mxP.ttf', 'Roboto', 'normal');
     doc.setFont('Roboto');
 
-    const tableColumn = ['Order ID', 'Vendor ID', 'User ID', 'Customer', 'Status', 'Date'];
+    const tableColumn = ['Order ID', 'Vendor ID', 'User ID', 'Customer', 'Order Status', 'Date'];
     const tableRows = filteredOrders.map(order => [
       order.orderId,
       order.vendorId,
@@ -290,7 +290,7 @@ const OrdersScreen = () => {
       'User ID': order.userId || '-',
       'Customer Name': order.customerName,
       'Address': order.address,
-      'Status': order.status,
+      'Order Status': order.status,
       'Date': format(order.date, 'dd/MM/yyyy')
     }));
 
@@ -455,7 +455,7 @@ const OrdersScreen = () => {
     },
     { 
       id: 'status', 
-      label: 'Status',
+      label: 'Order Status',
       width: 120,
       minWidth: 100,
       render: (row) => (

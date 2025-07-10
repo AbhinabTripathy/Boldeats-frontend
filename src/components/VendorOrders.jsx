@@ -137,7 +137,7 @@ const VendorOrders = () => {
     },
     {
       id: 'status',
-      label: 'Status',
+      label: 'Order Status', // Changed label here
       width: 120,
       minWidth: 100,
       render: (row) => (
@@ -152,40 +152,6 @@ const VendorOrders = () => {
           size={isMobile ? 'small' : 'medium'}
         />
       )
-    },
-    {
-      id: 'actions',
-      label: 'Actions',
-      width: 200,
-      minWidth: 150,
-      align: 'center',
-      render: (row) => {
-        if (row.status === 'Pending') {
-          return (
-            <Stack direction={isMobile ? 'column' : 'row'} spacing={1} justifyContent="center">
-              <Button
-                variant="contained"
-                size={isMobile ? 'small' : 'medium'}
-                onClick={() => handleOrderStatusChange(row.id, 'Accepted')}
-                sx={{ bgcolor: '#4caf50', '&:hover': { bgcolor: '#388e3c' }, minWidth: isMobile ? '60px' : '70px', height: isMobile ? '24px' : '30px' }}
-                disabled={!!actionLoading[row.id]}
-              >
-                {actionLoading[row.id] ? <CircularProgress size={18} color="inherit" /> : 'Accept'}
-              </Button>
-              <Button
-                variant="contained"
-                size={isMobile ? 'small' : 'medium'}
-                onClick={() => handleOrderStatusChange(row.id, 'Rejected')}
-                sx={{ bgcolor: '#f44336', '&:hover': { bgcolor: '#d32f2f' }, minWidth: isMobile ? '60px' : '70px', height: isMobile ? '24px' : '30px' }}
-                disabled={!!actionLoading[row.id]}
-              >
-                {actionLoading[row.id] ? <CircularProgress size={18} color="inherit" /> : 'Reject'}
-              </Button>
-            </Stack>
-          );
-        }
-        return null;
-      }
     }
   ].filter(col => !col.hide);
 

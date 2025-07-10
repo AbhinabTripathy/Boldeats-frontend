@@ -65,7 +65,9 @@ const ActiveUsersScreen = () => {
             pendingBalance: user.pendingBalance,
             countdown: calculateCountdown(user.startDate, parseInt(user.subscriptionType) || 30),
             subscriptionType: user.subscriptionType,
-            profilePic: user.profilePic
+            profilePic: user.profilePic,
+            comments: user.comments || '-',
+            deliveryStatus: user.deliveryStatus || 'Pending'
           }));
           setActiveUsers(subscribers);
         } else {
@@ -167,7 +169,8 @@ const ActiveUsersScreen = () => {
                     <TableCell sx={{ fontWeight: 'bold' }}>Start Date</TableCell>
                     <TableCell sx={{ fontWeight: 'bold' }}>Pending Balance</TableCell>
                     <TableCell sx={{ fontWeight: 'bold' }}>Countdown</TableCell>
-                    <TableCell sx={{ fontWeight: 'bold' }}>Actions</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }}>Delivery Status</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }}>Comments</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -214,6 +217,7 @@ const ActiveUsersScreen = () => {
                             </IconButton>
                           </Tooltip>
                         </TableCell>
+                        <TableCell>-</TableCell>
                       </TableRow>
                     ))}
                 </TableBody>
@@ -241,4 +245,4 @@ const ActiveUsersScreen = () => {
   );
 };
 
-export default ActiveUsersScreen; 
+export default ActiveUsersScreen;

@@ -145,6 +145,12 @@ const Login = () => {
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+            {/* Logo added here */}
+            <img
+              src={require('../assets/images/BoldTribe Logo-2.svg').default || require('../assets/images/BoldTribe Logo-2.svg')}
+              alt="BoldTribe Logo"
+              style={{ height: 36, width: 36, marginRight: 10 }}
+            />
             {loginType === 'admin' ? (
               <AdminPanelSettingsIcon sx={{ mr: 1, fontSize: 28 }} />
             ) : (
